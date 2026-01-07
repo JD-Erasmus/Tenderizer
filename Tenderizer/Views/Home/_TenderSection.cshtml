@@ -1,0 +1,46 @@
+@using Tenderizer.Views.Home
+@model TenderSectionVm
+
+<div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <strong>@Model.Title</strong>
+        <span class="text-muted small">@Model.Items.Count</span>
+    </div>
+
+    <div class="card-body p-0">
+        @if (Model.Items.Count == 0)
+        {
+            <div class="p-3 text-muted small">No items.</div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-striped mb-0">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Client</th>
+                            <th>Status</th>
+                            <th>Closing (UTC)</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var t in Model.Items)
+                        {
+                            <tr>
+                                <td>@t.Name</td>
+                                <td>@t.Client</td>
+                                <td><partial name="_TenderStatusBadge" model="t.Status" /></td>
+                                <td>@t.ClosingAtUtc.ToString("yyyy-MM-dd HH:mm") UTC</td>
+                                <td class="text-end">
+                                    <a class="btn btn-sm btn-outline-primary" asp-controller="Tenders" asp-action="Details" asp-route-id="@t.Id">View</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>

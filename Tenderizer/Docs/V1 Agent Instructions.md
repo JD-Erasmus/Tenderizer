@@ -1,9 +1,9 @@
-# Tender Deadline Tracker (Internal) — V1 Agent Instructions (.NET 8 ASP.NET Core MVC)
+# Tender Deadline Tracker (Internal) ï¿½ V1 Agent Instructions (.NET 8 ASP.NET Core MVC)
 
 ## Objective
 Replace the current whiteboard tender tracking with a web-based internal tool that:
 - Captures tenders, ownership, and deadlines
-- Surfaces “due soon” items on a dashboard
+- Surfaces due soon items on a dashboard
 - Sends automatic deadline reminders via email
 - Requires minimal training and mirrors the current workflow
 
@@ -11,7 +11,7 @@ Replace the current whiteboard tender tracking with a web-based internal tool th
 ### Must-have
 - Authenticated access (company internal users)
 - Tender CRUD
-- Owner assignment (single accountable owner)
+- Owner assignment (single accountable owner, with support from additional employees)
 - Status updates
 - Dashboard views (Urgent / This Week / Active / History)
 - Automated reminder emails at fixed intervals
@@ -30,7 +30,7 @@ Replace the current whiteboard tender tracking with a web-based internal tool th
 ## Tech Stack
 - .NET 8
 - ASP.NET Core MVC + Razor Views
-- EF Core (provider-agnostic; choose SQLite for dev, SQL Server/Postgres for prod)
+- EF Core (provider-agnostic; SQL Server)
 - ASP.NET Core Identity (cookie auth)
 - BackgroundService for reminders (no Hangfire in V1)
 
@@ -38,8 +38,8 @@ Replace the current whiteboard tender tracking with a web-based internal tool th
 
 ## Data & Time Rules
 - Store datetimes as `DateTimeOffset` in UTC in DB.
-- UI input/output uses local time Africa/Windhoek.
-- Convert to UTC on write; convert to local on read for display.
+- UI input/output uses UTC; display with an explicit `UTC` label.
+- No local time conversion in V1 to avoid OS-specific timezone handling.
 
 ---
 
@@ -94,7 +94,6 @@ Generate reminders relative to ClosingAt:
 - T-7 days
 - T-3 days
 - T-24 hours
-- T-2 hours
 
 Rules:
 - Only generate reminders when status is in: `Identified`, `InProgress`, `Draft`
@@ -103,7 +102,7 @@ Rules:
 - If status becomes terminal, delete unsent reminders.
 
 Idempotency:
-- Enforce uniqueness on `(TenderId, ReminderAtUtc)` and always “upsert” behavior.
+- Enforce uniqueness on `(TenderId, ReminderAtUtc)` and always ï¿½upsertï¿½ behavior.
 
 ---
 
@@ -131,7 +130,7 @@ Sections (server-rendered):
 1. **Urgent**: Closing in next 48h, not terminal
 2. **This Week**: Closing in next 7 days, not terminal
 3. **Active**: Status in Draft/Identified/InProgress, closing > 7 days
-4. **History**: Submitted/Won/Lost/Cancelled (last 60–90 days)
+4. **History**: Submitted/Won/Lost/Cancelled (last 90 days by UpdatedAtUtc)
 
 Sorting:
 - Urgent/This Week by `ClosingAtUtc` ascending
@@ -147,7 +146,7 @@ Sorting:
 UI requirements:
 - Inline status dropdown on details/edit
 - Owner dropdown (Admin always; User only on create if allowed else self)
-- Date + time picker for closing datetime (local time)
+- Date + time picker for closing datetime (UTC)
 
 Validation:
 - Name required
@@ -174,7 +173,7 @@ Actions:
 ViewModels:
 - `TenderListItemVm`
 - `TenderDetailsVm`
-- `TenderUpsertVm` (strongly validated; contains local ClosingAtLocal)
+- `TenderUpsertVm` (strongly validated; contains ClosingAtUtc)
 
 ---
 
@@ -215,8 +214,8 @@ Loop every 60 seconds:
    - Backoff: handled implicitly by next loop (optional: push ReminderAtUtc + 10 min on fail)
 
 Concurrency:
-- Use a DB transaction per reminder update.
-- Optional: “claim” reminders by setting a temporary lock column (skip in V1 unless duplicates appear).
+- Use a DB transaction per reminder update (required).
+- Single-instance deployment assumed for V1; if multiple instances are introduced, add a claim/lock to avoid double sends.
 
 ---
 
@@ -231,7 +230,7 @@ Config (appsettings):
 
 Email template (simple HTML):
 - Tender Name
-- Closing local datetime
+- Closing UTC datetime
 - Owner name
 - Status
 - Link to tender details
@@ -288,11 +287,11 @@ Migrations:
 ---
 
 ## Implementation Checklist (Build Order)
-1. Create MVC project + Identity
+1. Create MVC project + Identity - done
 2. Add EF Core + migrations
-3. Implement entities + configurations + indexes/constraints
-4. Implement TenderService (CRUD + dashboard queries)
-5. Implement ReminderScheduler (generate/regenerate/clear)
+3. Implement entities + configurations + indexes/constraints - done
+4. Implement TenderService (CRUD + dashboard queries) - done
+5. Implement ReminderScheduler (generate/regenerate/clear) - done
 6. Implement TenderReminderWorker + EmailSender
 7. Implement Razor pages (Dashboard + Tender CRUD)
 8. Add role seeding + initial Admin seed

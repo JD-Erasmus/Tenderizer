@@ -1,0 +1,14 @@
+@* Shared command bar: left content (filters/search), right small primary action *@
+@{
+    var left = ViewData["CommandLeft"] as IHtmlContent;
+    var right = ViewData["CommandRight"] as IHtmlContent;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <div class="d-flex align-items-center gap-2">
+        @left
+    </div>
+    <div class="d-flex gap-2">
+        @right
+    </div>
+</div>

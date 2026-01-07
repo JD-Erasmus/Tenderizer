@@ -1,0 +1,53 @@
+@using Tenderizer.Models
+@using Tenderizer.ViewModels
+@using Microsoft.AspNetCore.Mvc.Rendering
+@model TenderUpsertVm
+
+<div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+<div class="mb-3">
+    <label asp-for="Name" class="form-label"></label>
+    <input asp-for="Name" class="form-control" />
+    <span asp-validation-for="Name" class="text-danger"></span>
+</div>
+
+<div class="mb-3">
+    <label asp-for="ReferenceNumber" class="form-label"></label>
+    <input asp-for="ReferenceNumber" class="form-control" />
+    <span asp-validation-for="ReferenceNumber" class="text-danger"></span>
+</div>
+
+<div class="mb-3">
+    <label asp-for="Client" class="form-label"></label>
+    <input asp-for="Client" class="form-control" />
+    <span asp-validation-for="Client" class="text-danger"></span>
+</div>
+
+<div class="mb-3">
+    <label asp-for="Category" class="form-label"></label>
+    <input asp-for="Category" class="form-control" />
+    <span asp-validation-for="Category" class="text-danger"></span>
+</div>
+
+<div class="mb-3">
+    <label asp-for="ClosingAtUtc" class="form-label"></label>
+    <input asp-for="ClosingAtUtc" class="form-control" type="datetime-local" />
+    <div class="form-text">UTC (no local time conversion in V1)</div>
+    <span asp-validation-for="ClosingAtUtc" class="text-danger"></span>
+</div>
+
+<div class="mb-3">
+    <label asp-for="Status" class="form-label"></label>
+    <select asp-for="Status" class="form-select" asp-items="Html.GetEnumSelectList<TenderStatus>()"></select>
+    <span asp-validation-for="Status" class="text-danger"></span>
+</div>
+
+@if (User.IsInRole("Admin"))
+{
+    var owners = ViewBag.OwnerUsers as IReadOnlyList<SelectListItem> ?? Array.Empty<SelectListItem>();
+    <div class="mb-3">
+        <label asp-for="OwnerUserId" class="form-label"></label>
+        <select asp-for="OwnerUserId" class="form-select" asp-items="owners"></select>
+        <span asp-validation-for="OwnerUserId" class="text-danger"></span>
+    </div>
+}

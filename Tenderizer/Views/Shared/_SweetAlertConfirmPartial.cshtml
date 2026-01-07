@@ -1,0 +1,33 @@
+@* SweetAlert helper (loaded once per page where needed). Requires SweetAlert2 on window.Swal. *@
+<script>
+    window.Tenderizer = window.Tenderizer || {};
+
+    window.Tenderizer.confirmDelete = function (form, opts) {
+        if (!form) return;
+
+        const title = (opts && opts.title) || 'Delete this item?';
+        const text = (opts && opts.text) || 'This action cannot be undone.';
+        const confirmButtonText = (opts && opts.confirmButtonText) || 'Delete';
+        const cancelButtonText = (opts && opts.cancelButtonText) || 'Cancel';
+
+        if (!window.Swal) {
+            // Fallback: submit directly if SweetAlert isn't available
+            form.submit();
+            return;
+        }
+
+        Swal.fire({
+            icon: 'warning',
+            title: title,
+            text: text,
+            showCancelButton: true,
+            confirmButtonText: confirmButtonText,
+            cancelButtonText: cancelButtonText,
+            confirmButtonColor: '#dc3545'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                form.submit();
+            }
+        });
+    };
+</script>

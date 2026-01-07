@@ -1,0 +1,40 @@
+@using Tenderizer.ViewModels
+@using Microsoft.AspNetCore.Mvc.Rendering
+@model TenderDetailsVm
+
+@{
+    ViewData["Title"] = "Delete Tender";
+
+    var backLink = new TagBuilder("a");
+    backLink.AddCssClass("btn btn-outline-secondary");
+    backLink.Attributes["href"] = Url.Action("Details", new { id = Model.Id })!;
+    backLink.InnerHtml.Append("Back");
+
+    ViewData["HeaderActions"] = backLink;
+}
+
+<partial name="_PageHeader" />
+
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="alert alert-danger mb-3">
+            Are you sure you want to delete <strong>@Model.Name</strong>?
+        </div>
+
+        <form method="post" asp-action="DeleteConfirmed" asp-route-id="@Model.Id" id="deleteForm">
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-danger" id="deleteBtn">Delete</button>
+                <a class="btn btn-outline-secondary" asp-action="Details" asp-route-id="@Model.Id">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_SweetAlertConfirmPartial" />
+    <script>
+        document.getElementById('deleteBtn')?.addEventListener('click', function () {
+            window.Tenderizer.confirmDelete(document.getElementById('deleteForm'));
+        });
+    </script>
+}

@@ -1,0 +1,25 @@
+@using Tenderizer.ViewModels
+@model TenderUpsertVm
+
+@{
+    ViewData["Title"] = "Edit Tender";
+}
+
+<partial name="_PageHeader" />
+
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="post">
+            <partial name="_TenderForm" model="Model" />
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">Save</button>
+                <a class="btn btn-outline-secondary" asp-action="Index">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

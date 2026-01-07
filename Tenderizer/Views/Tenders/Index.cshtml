@@ -1,0 +1,55 @@
+@using Tenderizer.ViewModels
+@using Microsoft.AspNetCore.Html
+@using Microsoft.AspNetCore.Mvc.Rendering
+@model IReadOnlyList<TenderListItemVm>
+
+@{
+    ViewData["Title"] = "Tenders";
+    ViewData["Subtitle"] = $"{Model.Count} total";
+
+    var search = new TagBuilder("input");
+    search.AddCssClass("form-control form-control-sm");
+    search.Attributes["type"] = "search";
+    search.Attributes["name"] = "q";
+    search.Attributes["placeholder"] = "Search…";
+
+    var createLink = new TagBuilder("a");
+    createLink.AddCssClass("btn btn-sm btn-primary");
+    createLink.Attributes["href"] = Url.Action("Create")!;
+    createLink.InnerHtml.Append("New");
+
+    ViewData["CommandLeft"] = search;
+    ViewData["CommandRight"] = createLink;
+}
+
+<partial name="_PageHeader" />
+<partial name="_CommandBar" />
+
+<div class="table-responsive">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Client</th>
+                <th>Status</th>
+                <th>Closing (UTC)</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var t in Model)
+            {
+                <tr>
+                    <td>@t.Name</td>
+                    <td>@t.Client</td>
+                    <td><partial name="_TenderStatusBadge" model="t.Status" /></td>
+                    <td>@t.ClosingAtUtc.ToString("yyyy-MM-dd HH:mm") UTC</td>
+                    <td class="text-end">
+                        <a class="btn btn-sm btn-outline-primary" asp-action="Details" asp-route-id="@t.Id">View</a>
+                        <a class="btn btn-sm btn-outline-secondary" asp-action="Edit" asp-route-id="@t.Id">Edit</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

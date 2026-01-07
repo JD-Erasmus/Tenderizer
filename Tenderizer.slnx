@@ -1,3 +1,4 @@
 <Solution>
   <Project Path="Tenderizer/Tenderizer.csproj" />
+  <Project Path="TenderizerTest/TenderizerTest.csproj" Id="424da264-879d-44a3-a451-1638f0ad1f51" />
 </Solution>

@@ -1,0 +1,86 @@
+@using Tenderizer.ViewModels
+@using Microsoft.AspNetCore.Html
+@using Microsoft.AspNetCore.Mvc.Rendering
+@model TenderDetailsVm
+
+@{
+    ViewData["Title"] = Model.Name;
+    ViewData["Subtitle"] = $"Closing {Model.ClosingAtUtc:yyyy-MM-dd HH:mm} UTC";
+
+    var editLink = new TagBuilder("a");
+    editLink.AddCssClass("btn btn-outline-secondary");
+    editLink.Attributes["href"] = Url.Action("Edit", new { id = Model.Id })!;
+    editLink.InnerHtml.Append("Edit");
+
+    var isAdmin = User.IsInRole("Admin");
+
+    if (!isAdmin)
+    {
+        ViewData["HeaderActions"] = editLink;
+    }
+    else
+    {
+        var deleteForm = new TagBuilder("form");
+        deleteForm.Attributes["method"] = "post";
+        deleteForm.Attributes["action"] = Url.Action("DeleteConfirmed", new { id = Model.Id })!;
+        deleteForm.AddCssClass("d-inline");
+
+        var deleteButton = new TagBuilder("button");
+        deleteButton.Attributes["type"] = "button";
+        deleteButton.Attributes["data-delete-button"] = "true";
+        deleteButton.AddCssClass("btn btn-outline-danger");
+        deleteButton.InnerHtml.Append("Delete");
+
+        deleteForm.InnerHtml.AppendHtml(deleteButton);
+
+        var actions = new HtmlContentBuilder().AppendHtml(editLink).AppendHtml(deleteForm);
+        ViewData["HeaderActions"] = actions;
+    }
+}
+
+<partial name="_PageHeader" />
+
+<div class="card">
+    <div class="card-body">
+        <dl class="row mb-0">
+            <dt class="col-sm-3">Reference</dt>
+            <dd class="col-sm-9">@Model.ReferenceNumber</dd>
+
+            <dt class="col-sm-3">Client</dt>
+            <dd class="col-sm-9">@Model.Client</dd>
+
+            <dt class="col-sm-3">Category</dt>
+            <dd class="col-sm-9">@Model.Category</dd>
+
+            <dt class="col-sm-3">Status</dt>
+            <dd class="col-sm-9"><partial name="_TenderStatusBadge" model="Model.Status" /></dd>
+
+            <dt class="col-sm-3">Closing (UTC)</dt>
+            <dd class="col-sm-9">@Model.ClosingAtUtc.ToString("yyyy-MM-dd HH:mm") UTC</dd>
+
+            <dt class="col-sm-3">Owner User Id</dt>
+            <dd class="col-sm-9">@Model.OwnerUserId</dd>
+
+            <dt class="col-sm-3">Created (UTC)</dt>
+            <dd class="col-sm-9">@Model.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm") UTC</dd>
+
+            <dt class="col-sm-3">Updated (UTC)</dt>
+            <dd class="col-sm-9">@Model.UpdatedAtUtc.ToString("yyyy-MM-dd HH:mm") UTC</dd>
+        </dl>
+    </div>
+</div>
+
+@if (isAdmin)
+{
+    @section Scripts {
+        <partial name="_SweetAlertConfirmPartial" />
+        <script>
+            document.addEventListener('click', function (e) {
+                const btn = e.target.closest('[data-delete-button]');
+                if (!btn) return;
+                const form = btn.closest('form');
+                window.Tenderizer.confirmDelete(form);
+            });
+        </script>
+    }
+}

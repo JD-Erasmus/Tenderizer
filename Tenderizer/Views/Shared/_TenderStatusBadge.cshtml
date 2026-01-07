@@ -1,0 +1,15 @@
+@using Tenderizer.Models
+@model TenderStatus
+
+@{
+    var cls = Model switch
+    {
+        TenderStatus.Won => "bg-success",
+        TenderStatus.Lost => "bg-danger",
+        TenderStatus.Submitted => "bg-warning text-dark",
+        TenderStatus.Cancelled => "bg-secondary",
+        _ => "bg-secondary",
+    };
+}
+
+<span class="badge @cls">@Model</span>

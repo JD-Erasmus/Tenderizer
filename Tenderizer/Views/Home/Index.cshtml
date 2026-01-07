@@ -1,8 +1,50 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
+﻿@using Tenderizer.Models
+@using Tenderizer.ViewModels
+@using Microsoft.AspNetCore.Html
+@using Microsoft.AspNetCore.Mvc.Rendering
+@model IReadOnlyList<TenderListItemVm>
+
+@{
+    ViewData["Title"] = "Dashboard";
+    ViewData["Subtitle"] = "Next 48h • This week • Active • History";
+
+    var createLink = new TagBuilder("a");
+    createLink.AddCssClass("btn btn-primary");
+    createLink.Attributes["href"] = Url.Action("Create", "Tenders")!;
+    createLink.InnerHtml.Append("New Tender");
+
+    ViewData["HeaderActions"] = createLink;
+
+    var nowUtc = DateTimeOffset.UtcNow;
+
+    bool IsTerminal(TenderStatus s) => s is TenderStatus.Submitted or TenderStatus.Won or TenderStatus.Lost or TenderStatus.Cancelled;
+    bool IsActive(TenderStatus s) => s is TenderStatus.Draft or TenderStatus.Identified or TenderStatus.InProgress;
+
+    var urgent = Model
+        .Where(t => !IsTerminal(t.Status) && t.ClosingAtUtc <= nowUtc.AddHours(48) && t.ClosingAtUtc >= nowUtc)
+        .OrderBy(t => t.ClosingAtUtc)
+        .ToList();
+
+    var thisWeek = Model
+        .Where(t => !IsTerminal(t.Status) && t.ClosingAtUtc <= nowUtc.AddDays(7) && t.ClosingAtUtc > nowUtc.AddHours(48))
+        .OrderBy(t => t.ClosingAtUtc)
+        .ToList();
+
+    var active = Model
+        .Where(t => IsActive(t.Status) && t.ClosingAtUtc > nowUtc.AddDays(7))
+        .OrderBy(t => t.ClosingAtUtc)
+        .ToList();
+
+    // For V1 we don't have UpdatedAtUtc on list items; history is approximated by terminal status only.
+    var history = Model
+        .Where(t => IsTerminal(t.Status))
+        .OrderByDescending(t => t.ClosingAtUtc)
+        .ToList();
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
-</div>
+<partial name="_PageHeader" />
+
+<partial name="_TenderSection" model="@(new Tenderizer.Views.Home.TenderSectionVm("Urgent (next 48h)", urgent))" />
+<partial name="_TenderSection" model="@(new Tenderizer.Views.Home.TenderSectionVm("This Week (next 7 days)", thisWeek))" />
+<partial name="_TenderSection" model="@(new Tenderizer.Views.Home.TenderSectionVm("Active", active))" />
+<partial name="_TenderSection" model="@(new Tenderizer.Views.Home.TenderSectionVm("History", history))" />
