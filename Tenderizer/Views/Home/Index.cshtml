@@ -6,8 +6,6 @@
 
 @{
     ViewData["Title"] = "Dashboard";
-    ViewData["Subtitle"] = "Next 48h • This week • Active • History";
-
     var createLink = new TagBuilder("a");
     createLink.AddCssClass("btn btn-primary");
     createLink.Attributes["href"] = Url.Action("Create", "Tenders")!;
@@ -40,6 +38,8 @@
         .Where(t => IsTerminal(t.Status))
         .OrderByDescending(t => t.ClosingAtUtc)
         .ToList();
+
+    ViewData["Subtitle"] = $"Urgent {urgent.Count} | This week {thisWeek.Count} | Active {active.Count} | History {history.Count}";
 }
 
 <partial name="_PageHeader" />

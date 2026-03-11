@@ -8,7 +8,7 @@
     ViewData["Subtitle"] = $"Closing {Model.ClosingAtUtc:yyyy-MM-dd HH:mm} UTC";
 
     var editLink = new TagBuilder("a");
-    editLink.AddCssClass("btn btn-outline-secondary");
+    editLink.AddCssClass("btn btn-primary");
     editLink.Attributes["href"] = Url.Action("Edit", new { id = Model.Id })!;
     editLink.InnerHtml.Append("Edit");
 
@@ -58,7 +58,7 @@
             <dt class="col-sm-3">Closing (UTC)</dt>
             <dd class="col-sm-9">@Model.ClosingAtUtc.ToString("yyyy-MM-dd HH:mm") UTC</dd>
 
-            <dt class="col-sm-3">Owner User Id</dt>
+            <dt class="col-sm-3">Owner</dt>
             <dd class="col-sm-9">@Model.OwnerUserId</dd>
 
             <dt class="col-sm-3">Created (UTC)</dt>

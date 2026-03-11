@@ -2,6 +2,7 @@
 @model LogoutModel
 @{
     ViewData["Title"] = "Log out";
+    ViewData["Subtitle"] = "End your current session.";
 }
 
 <partial name="_PageHeader" />
@@ -25,5 +26,10 @@
 }
 else
 {
-    <div class="text-muted">You have successfully logged out.</div>
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="alert alert-success mb-3">You have successfully logged out.</div>
+            <a class="btn btn-outline-secondary" asp-page="./Login">Back to login</a>
+        </div>
+    </div>
 }

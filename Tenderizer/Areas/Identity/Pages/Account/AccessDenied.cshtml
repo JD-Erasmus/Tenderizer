@@ -1,12 +1,23 @@
 ﻿@page
+@using Microsoft.AspNetCore.Mvc.Rendering
 @model AccessDeniedModel
 @{
     ViewData["Title"] = "Access denied";
     ViewData["Subtitle"] = "You do not have access to this resource.";
+
+    var backLink = new TagBuilder("a");
+    backLink.AddCssClass("btn btn-outline-secondary");
+    backLink.Attributes["href"] = Url.Action("Index", "Home", new { area = "" })!;
+    backLink.InnerHtml.Append("Back to dashboard");
+
+    ViewData["HeaderActions"] = backLink;
 }
 
 <partial name="_PageHeader" />
 
 <div class="alert alert-danger mb-3">
     You do not have access to this resource.
+</div>
+<div class="text-muted small">
+    If you believe this is incorrect, contact your administrator.
 </div>

@@ -25,9 +25,22 @@ public sealed class TendersController : Controller
     }
 
     [HttpGet("")]
-    public async Task<IActionResult> Index(CancellationToken cancellationToken)
+    public async Task<IActionResult> Index(string? q, CancellationToken cancellationToken)
     {
         var tenders = await _tenderService.GetListAsync(cancellationToken);
+        var totalCount = tenders.Count;
+
+        if (!string.IsNullOrWhiteSpace(q))
+        {
+            var term = q.Trim();
+            tenders = tenders
+                .Where(t => t.Name.Contains(term, StringComparison.OrdinalIgnoreCase)
+                    || (t.Client?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false))
+                .ToList();
+        }
+
+        ViewData["TotalCount"] = totalCount;
+        ViewData["Query"] = q?.Trim();
         return View(tenders);
     }
 
