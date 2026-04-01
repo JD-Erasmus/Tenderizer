@@ -110,7 +110,7 @@ public sealed class TenderService : ITenderService
             Name = dto.Name.Trim(),
             ReferenceNumber = dto.ReferenceNumber?.Trim(),
             Client = dto.Client?.Trim(),
-            Category = dto.Category?.Trim(),
+            Category = dto.Category?.ToStorageValue(),
             ClosingAtUtc = dto.ClosingAtUtc,
             Status = dto.Status,
             OwnerUserId = ownerUserId,
@@ -156,7 +156,7 @@ public sealed class TenderService : ITenderService
         entity.Name = dto.Name.Trim();
         entity.ReferenceNumber = dto.ReferenceNumber?.Trim();
         entity.Client = dto.Client?.Trim();
-        entity.Category = dto.Category?.Trim();
+        entity.Category = dto.Category?.ToStorageValue();
         entity.ClosingAtUtc = dto.ClosingAtUtc;
         entity.Status = dto.Status;
         entity.OwnerUserId = ownerUserId;

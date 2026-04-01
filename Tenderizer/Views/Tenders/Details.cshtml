@@ -11,13 +11,19 @@
     editLink.Attributes["href"] = Url.Action("Edit", new { id = Model.Id })!;
     editLink.InnerHtml.Append("Edit");
 
+    var documentsLink = new TagBuilder("a");
+    documentsLink.AddCssClass("btn btn-outline-secondary");
+    documentsLink.Attributes["href"] = Url.Action("Index", "TenderDocuments", new { tenderId = Model.Id })!;
+    documentsLink.InnerHtml.Append("Documents");
+
     var isAdmin = User.IsInRole("Admin");
     var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
     var canEdit = isAdmin || string.Equals(userId, Model.OwnerUserId, StringComparison.Ordinal);
 
     if (canEdit && !isAdmin)
     {
-        ViewData["HeaderActions"] = editLink;
+        var actions = new HtmlContentBuilder().AppendHtml(documentsLink).AppendHtml(editLink);
+        ViewData["HeaderActions"] = actions;
     }
     else if (isAdmin)
     {
@@ -35,7 +41,7 @@
 
         deleteForm.InnerHtml.AppendHtml(deleteButton);
 
-        var actions = new HtmlContentBuilder().AppendHtml(editLink).AppendHtml(deleteForm);
+        var actions = new HtmlContentBuilder().AppendHtml(documentsLink).AppendHtml(editLink).AppendHtml(deleteForm);
         ViewData["HeaderActions"] = actions;
     }
 }

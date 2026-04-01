@@ -1,0 +1,201 @@
+@using Tenderizer.Models
+@using Tenderizer.ViewModels
+@model TenderDocumentsIndexVm
+
+@{
+    ViewData["Title"] = $"{Model.TenderName} Documents";
+    ViewData["Subtitle"] = "Attach tender-specific files or pin a specific reusable library document version.";
+
+    var backLink = new TagBuilder("a");
+    backLink.AddCssClass("btn btn-outline-secondary");
+    backLink.Attributes["href"] = Url.Action("Details", "Tenders", new { id = Model.TenderId })!;
+    backLink.InnerHtml.Append("Back To Tender");
+    ViewData["HeaderActions"] = backLink;
+}
+
+<partial name="_PageHeader" />
+
+<div class="row g-3 mb-3">
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <h2 class="h5">Upload New Tender Document</h2>
+
+                <form method="post" asp-action="Upload" asp-route-tenderId="@Model.TenderId" enctype="multipart/form-data">
+                    @Html.AntiForgeryToken()
+
+                    <div class="mb-3">
+                        <label asp-for="Upload.Category" class="form-label"></label>
+                        <select asp-for="Upload.Category" class="form-select" asp-items="Html.GetEnumSelectList<TenderDocumentCategory>()"></select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Upload.DisplayName" class="form-label"></label>
+                        <input asp-for="Upload.DisplayName" class="form-control" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Upload.File" class="form-label"></label>
+                        <input asp-for="Upload.File" class="form-control" type="file" />
+                    </div>
+
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label asp-for="Upload.PersonName" class="form-label"></label>
+                            <input asp-for="Upload.PersonName" class="form-control" />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label asp-for="Upload.ProjectRole" class="form-label"></label>
+                            <input asp-for="Upload.ProjectRole" class="form-control" />
+                        </div>
+
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input asp-for="Upload.IsLeadConsultant" class="form-check-input" />
+                                <label asp-for="Upload.IsLeadConsultant" class="form-check-label"></label>
+                            </div>
+                            <div class="form-text">CV metadata is only used when the category is CV.</div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary mt-3">Upload Document</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <h2 class="h5">Attach Reusable Library Document</h2>
+
+                <form method="post" asp-action="AttachLibrary" asp-route-tenderId="@Model.TenderId">
+                    @Html.AntiForgeryToken()
+
+                    <div class="mb-3">
+                        <label asp-for="AttachLibrary.LibraryDocumentVersionId" class="form-label"></label>
+                        <select asp-for="AttachLibrary.LibraryDocumentVersionId" class="form-select">
+                            <option value="">Select a library version</option>
+                            @foreach (var option in Model.LibraryDocumentOptions)
+                            {
+                                <option value="@option.VersionId">@option.Label</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="AttachLibrary.Category" class="form-label"></label>
+                        <select asp-for="AttachLibrary.Category" class="form-select" asp-items="Html.GetEnumSelectList<TenderDocumentCategory>()"></select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="AttachLibrary.DisplayName" class="form-label"></label>
+                        <input asp-for="AttachLibrary.DisplayName" class="form-control" />
+                    </div>
+
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label asp-for="AttachLibrary.PersonName" class="form-label"></label>
+                            <input asp-for="AttachLibrary.PersonName" class="form-control" />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label asp-for="AttachLibrary.ProjectRole" class="form-label"></label>
+                            <input asp-for="AttachLibrary.ProjectRole" class="form-control" />
+                        </div>
+
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input asp-for="AttachLibrary.IsLeadConsultant" class="form-check-input" />
+                                <label asp-for="AttachLibrary.IsLeadConsultant" class="form-check-label"></label>
+                            </div>
+                            <div class="form-text">CV metadata is only used when the category is CV.</div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-outline-primary mt-3">Attach Library Version</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (Model.Documents.Count == 0)
+{
+    <div class="alert alert-secondary">No documents have been attached to this tender yet.</div>
+}
+else
+{
+    <div class="card">
+        <div class="card-body">
+            <h2 class="h5">Attached Documents</h2>
+
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Document</th>
+                            <th>Category</th>
+                            <th>Source</th>
+                            <th>Attached</th>
+                            <th>Notes</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model.Documents)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="fw-semibold">@item.DisplayName</div>
+                                    <div class="text-muted small">@item.FileName</div>
+                                </td>
+                                <td>@item.Category</td>
+                                <td>
+                                    @if (item.SourceType == TenderDocumentSourceType.LibraryDocumentVersion)
+                                    {
+                                        <div>@item.LibraryDocumentName</div>
+                                        <div class="text-muted small">v@item.LibraryVersionNumber</div>
+                                    }
+                                    else
+                                    {
+                                        <span>Direct upload</span>
+                                    }
+                                </td>
+                                <td>@item.AttachedAtUtc.ToString("yyyy-MM-dd HH:mm") UTC</td>
+                                <td>
+                                    @if (!string.IsNullOrWhiteSpace(item.PersonName) || !string.IsNullOrWhiteSpace(item.ProjectRole) || item.IsLeadConsultant)
+                                    {
+                                        @if (!string.IsNullOrWhiteSpace(item.PersonName))
+                                        {
+                                            <div>@item.PersonName</div>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(item.ProjectRole))
+                                        {
+                                            <div class="text-muted small">@item.ProjectRole</div>
+                                        }
+                                        @if (item.IsLeadConsultant)
+                                        {
+                                            <div class="badge text-bg-info mt-1">Lead consultant</div>
+                                        }
+                                    }
+                                    else if (!string.IsNullOrWhiteSpace(item.LibraryVersionExpiryStatus))
+                                    {
+                                        <span class="text-muted small">@item.LibraryVersionExpiryStatus</span>
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    <a class="btn btn-sm btn-outline-secondary"
+                                       asp-action="Download"
+                                       asp-route-tenderId="@Model.TenderId"
+                                       asp-route-documentId="@item.Id">Download</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}

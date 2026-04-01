@@ -14,13 +14,16 @@ namespace Tenderizer.Controllers;
 public sealed class TendersController : Controller
 {
     private readonly ITenderService _tenderService;
+    private readonly ITenderDocumentService _tenderDocumentService;
     private readonly IUserLookupService _userLookupService;
 
     public TendersController(
         ITenderService tenderService,
+        ITenderDocumentService tenderDocumentService,
         IUserLookupService userLookupService)
     {
         _tenderService = tenderService;
+        _tenderDocumentService = tenderDocumentService;
         _userLookupService = userLookupService;
     }
 
@@ -90,7 +93,31 @@ public sealed class TendersController : Controller
         try
         {
             var id = await _tenderService.CreateAsync(ToDto(vm), userId, isAdmin, cancellationToken);
-            TempData["StatusMessage"] = "Tender created.";
+
+            if (vm.TenderRequestDocument is not null)
+            {
+                try
+                {
+                    await _tenderDocumentService.UploadAsync(id, new TenderDocumentUploadDto
+                    {
+                        Category = TenderDocumentCategory.TenderRequestDocument,
+                        DisplayName = "Tender / RFP Document",
+                        File = vm.TenderRequestDocument,
+                    }, userId, isAdmin, cancellationToken);
+
+                    TempData["StatusMessage"] = "Tender created with the Tender / RFP document attached.";
+                }
+                catch (Exception ex)
+                {
+                    TempData["ErrorMessage"] = $"Tender created, but the Tender / RFP document upload failed: {ex.Message}";
+                    return RedirectToAction(nameof(Details), new { id });
+                }
+            }
+            else
+            {
+                TempData["StatusMessage"] = "Tender created.";
+            }
+
             return RedirectToAction(nameof(Details), new { id });
         }
         catch (Exception ex)
@@ -128,7 +155,7 @@ public sealed class TendersController : Controller
             Name = details.Name,
             ReferenceNumber = details.ReferenceNumber,
             Client = details.Client,
-            Category = details.Category,
+            Category = TenderCategoryExtensions.ParseOrNull(details.Category),
             ClosingAtUtc = details.ClosingAtUtc,
             Status = details.Status,
             OwnerUserId = details.OwnerUserId,

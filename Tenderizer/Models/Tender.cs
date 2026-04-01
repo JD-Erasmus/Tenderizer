@@ -33,4 +33,5 @@ public class Tender
     public DateTimeOffset UpdatedAtUtc { get; set; }
 
     public ICollection<TenderReminder> Reminders { get; set; } = new List<TenderReminder>();
+    public ICollection<TenderDocument> Documents { get; set; } = new List<TenderDocument>();
 }

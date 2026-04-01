@@ -1,0 +1,120 @@
+@using Microsoft.AspNetCore.Mvc.Rendering
+@using Tenderizer.ViewModels
+@model LibraryDocumentDetailVm
+
+@{
+    ViewData["Title"] = Model.Name;
+    ViewData["Subtitle"] = "Version history and current reusable document metadata.";
+
+    var actions = new HtmlContentBuilder();
+
+    var listLink = new TagBuilder("a");
+    listLink.AddCssClass("btn btn-outline-secondary");
+    listLink.Attributes["href"] = Url.Action("Index")!;
+    listLink.InnerHtml.Append("Back To List");
+    actions.AppendHtml(listLink);
+
+    var createLink = new TagBuilder("a");
+    createLink.AddCssClass("btn btn-primary");
+    createLink.Attributes["href"] = Url.Action("Create")!;
+    createLink.InnerHtml.Append("New Library Document");
+    actions.AppendHtml(createLink);
+
+    ViewData["HeaderActions"] = actions;
+}
+
+<partial name="_PageHeader" />
+
+<div class="row g-3">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h2 class="h5 mb-1">Versions</h2>
+                        @if (!string.IsNullOrWhiteSpace(Model.Description))
+                        {
+                            <div class="text-muted small">@Model.Description</div>
+                        }
+                    </div>
+                    @if (Model.CurrentVersion is not null)
+                    {
+                        <span class="badge text-bg-success">Current version @Model.CurrentVersion.VersionNumber</span>
+                    }
+                </div>
+
+                @if (Model.Versions.Count == 0)
+                {
+                    <div class="alert alert-secondary mb-0">No versions have been uploaded yet.</div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Version</th>
+                                    <th>File</th>
+                                    <th>Created</th>
+                                    <th>Expiry</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var version in Model.Versions)
+                                {
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="fw-semibold">Version @version.VersionNumber</span>
+                                                @if (version.IsCurrent)
+                                                {
+                                                    <span class="badge text-bg-success">Current</span>
+                                                }
+                                            </div>
+                                        </td>
+                                        <td>@version.FileName</td>
+                                        <td>@version.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm") UTC</td>
+                                        <td>@version.ExpiryStatus</td>
+                                        <td class="text-end">
+                                            <a class="btn btn-sm btn-outline-secondary"
+                                               asp-action="Download"
+                                               asp-route-id="@Model.Id"
+                                               asp-route-versionId="@version.Id">Download</a>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="h5">Upload New Version</h2>
+
+                <form method="post" asp-action="AddVersion" asp-route-id="@Model.Id" enctype="multipart/form-data" class="row g-3">
+                    @Html.AntiForgeryToken()
+
+                    <div class="col-12">
+                        <label asp-for="AddVersion.File" class="form-label"></label>
+                        <input asp-for="AddVersion.File" class="form-control" type="file" />
+                    </div>
+
+                    <div class="col-12">
+                        <label asp-for="AddVersion.ExpiryDateUtc" class="form-label"></label>
+                        <input asp-for="AddVersion.ExpiryDateUtc" class="form-control" type="date" />
+                    </div>
+
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-outline-primary">Upload Version</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

@@ -25,7 +25,9 @@
 
 <div class="mb-3">
     <label asp-for="Category" class="form-label"></label>
-    <input asp-for="Category" class="form-control" />
+    <select asp-for="Category" class="form-select" asp-items="Html.GetEnumSelectList<TenderCategory>()">
+        <option value="">Select a category</option>
+    </select>
     <span asp-validation-for="Category" class="text-danger"></span>
 </div>
 
@@ -41,6 +43,16 @@
     <select asp-for="Status" class="form-select" asp-items="Html.GetEnumSelectList<TenderStatus>()"></select>
     <span asp-validation-for="Status" class="text-danger"></span>
 </div>
+
+@if (ViewData["ShowTenderRequestUpload"] as bool? == true)
+{
+    <div class="mb-3">
+        <label asp-for="TenderRequestDocument" class="form-label"></label>
+        <input asp-for="TenderRequestDocument" class="form-control" type="file" />
+        <div class="form-text">Optional. Upload the tender advert, RFP, or source request document now.</div>
+        <span asp-validation-for="TenderRequestDocument" class="text-danger"></span>
+    </div>
+}
 
 @if (User.IsInRole("Admin"))
 {

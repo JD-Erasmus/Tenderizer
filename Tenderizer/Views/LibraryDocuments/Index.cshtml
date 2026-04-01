@@ -1,0 +1,67 @@
+@using Microsoft.AspNetCore.Mvc.Rendering
+@using Tenderizer.ViewModels
+@model LibraryDocumentsIndexVm
+
+@{
+    ViewData["Title"] = "Library Documents";
+    ViewData["Subtitle"] = "Browse reusable documents and jump into a document to manage versions.";
+
+    var createLink = new TagBuilder("a");
+    createLink.AddCssClass("btn btn-primary");
+    createLink.Attributes["href"] = Url.Action("Create")!;
+    createLink.InnerHtml.Append("New Library Document");
+    ViewData["HeaderActions"] = createLink;
+}
+
+<partial name="_PageHeader" />
+
+@if (Model.Items.Count == 0)
+{
+    <div class="alert alert-secondary">No reusable library documents have been created yet.</div>
+}
+else
+{
+    foreach (var item in Model.Items)
+    {
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h2 class="h5 mb-1">@item.Name</h2>
+                        @if (!string.IsNullOrWhiteSpace(item.Description))
+                        {
+                            <div class="text-muted small">@item.Description</div>
+                        }
+                    </div>
+                    @if (item.CurrentVersion is not null)
+                    {
+                        <span class="badge text-bg-success">Current version @item.CurrentVersion.VersionNumber</span>
+                    }
+                </div>
+
+                <div class="row g-3 mt-1 align-items-end">
+                    <div class="col-md-4">
+                        <div class="text-muted small text-uppercase">Current File</div>
+                        <div class="fw-semibold">@(item.CurrentVersion?.FileName ?? "No version uploaded")</div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <div class="text-muted small text-uppercase">Versions</div>
+                        <div class="fw-semibold">@item.Versions.Count</div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <div class="text-muted small text-uppercase">Expiry</div>
+                        <div class="fw-semibold">@(item.CurrentVersion?.ExpiryStatus ?? "No expiry")</div>
+                    </div>
+
+                    <div class="col-md-2 text-md-end">
+                        <a class="btn btn-outline-secondary"
+                           asp-action="Details"
+                           asp-route-id="@item.Id">View</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}

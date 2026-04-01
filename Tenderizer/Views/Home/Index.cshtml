@@ -1,49 +1,363 @@
-﻿@using Tenderizer.Models
-@using Tenderizer.ViewModels
+@using System.Security.Claims
 @using Microsoft.AspNetCore.Html
 @using Microsoft.AspNetCore.Mvc.Rendering
+@using Tenderizer.Models
+@using Tenderizer.ViewModels
 @model IReadOnlyList<TenderListItemVm>
 
 @{
     ViewData["Title"] = "Dashboard";
+
     var createLink = new TagBuilder("a");
     createLink.AddCssClass("btn btn-primary");
     createLink.Attributes["href"] = Url.Action("Create", "Tenders")!;
     createLink.InnerHtml.Append("New Tender");
-
     ViewData["HeaderActions"] = createLink;
 
     var nowUtc = DateTimeOffset.UtcNow;
+    var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+    var isAdmin = User.IsInRole("Admin");
 
-    bool IsTerminal(TenderStatus s) => s is TenderStatus.Submitted or TenderStatus.Won or TenderStatus.Lost or TenderStatus.Cancelled;
-    bool IsActive(TenderStatus s) => s is TenderStatus.Draft or TenderStatus.Identified or TenderStatus.InProgress;
+    bool IsResolved(TenderStatus status) => status is TenderStatus.Won or TenderStatus.Lost or TenderStatus.Cancelled;
+    bool IsPipeline(TenderStatus status) => status is TenderStatus.Draft or TenderStatus.Identified or TenderStatus.InProgress;
+    bool CanEdit(TenderListItemVm tender) => isAdmin || string.Equals(currentUserId, tender.OwnerUserId, StringComparison.Ordinal);
+    string OwnerLabel(TenderListItemVm tender) => string.IsNullOrWhiteSpace(tender.OwnerDisplayName) ? "Unassigned" : tender.OwnerDisplayName;
+    string ClientLabel(TenderListItemVm tender) => string.IsNullOrWhiteSpace(tender.Client) ? "No client yet" : tender.Client!;
+    string ReferenceLabel(TenderListItemVm tender)
+    {
+        var parts = new List<string>();
 
-    var urgent = Model
-        .Where(t => !IsTerminal(t.Status) && t.ClosingAtUtc <= nowUtc.AddHours(48) && t.ClosingAtUtc >= nowUtc)
+        if (!string.IsNullOrWhiteSpace(tender.ReferenceNumber))
+        {
+            parts.Add(tender.ReferenceNumber!);
+        }
+
+        if (!string.IsNullOrWhiteSpace(tender.Category))
+        {
+            parts.Add(tender.Category!);
+        }
+
+        return parts.Count == 0 ? "No reference or category yet" : string.Join(" | ", parts);
+    }
+
+    string FormatCountdown(DateTimeOffset closingAtUtc)
+    {
+        var delta = closingAtUtc - nowUtc;
+
+        if (delta < TimeSpan.Zero)
+        {
+            var overdue = delta.Duration();
+            return overdue.TotalHours < 24
+                ? $"Overdue by {Math.Ceiling(overdue.TotalHours):0}h"
+                : $"Overdue by {Math.Ceiling(overdue.TotalDays):0}d";
+        }
+
+        if (delta.TotalHours < 24)
+        {
+            return $"Closes in {Math.Ceiling(delta.TotalHours):0}h";
+        }
+
+        if (delta.TotalDays < 7)
+        {
+            return $"Closes in {Math.Ceiling(delta.TotalDays):0}d";
+        }
+
+        return $"Closes {closingAtUtc:dd MMM}";
+    }
+
+    string DeadlineClass(DateTimeOffset closingAtUtc)
+    {
+        if (closingAtUtc < nowUtc)
+        {
+            return "is-overdue";
+        }
+
+        if (closingAtUtc <= nowUtc.AddHours(48))
+        {
+            return "is-soon";
+        }
+
+        return "is-steady";
+    }
+
+    var pipeline = Model
+        .Where(t => IsPipeline(t.Status))
         .OrderBy(t => t.ClosingAtUtc)
         .ToList();
 
-    var thisWeek = Model
-        .Where(t => !IsTerminal(t.Status) && t.ClosingAtUtc <= nowUtc.AddDays(7) && t.ClosingAtUtc > nowUtc.AddHours(48))
-        .OrderBy(t => t.ClosingAtUtc)
+    var draft = pipeline
+        .Where(t => t.Status == TenderStatus.Draft)
         .ToList();
 
-    var active = Model
-        .Where(t => IsActive(t.Status) && t.ClosingAtUtc > nowUtc.AddDays(7))
-        .OrderBy(t => t.ClosingAtUtc)
+    var identified = pipeline
+        .Where(t => t.Status == TenderStatus.Identified)
         .ToList();
 
-    var history = Model
-        .Where(t => IsTerminal(t.Status))
+    var inProgress = pipeline
+        .Where(t => t.Status == TenderStatus.InProgress)
+        .ToList();
+
+    var overdue = pipeline
+        .Where(t => t.ClosingAtUtc < nowUtc)
+        .ToList();
+
+    var dueNext48Hours = pipeline
+        .Where(t => t.ClosingAtUtc >= nowUtc && t.ClosingAtUtc <= nowUtc.AddHours(48))
+        .ToList();
+
+    var dueThisWeek = pipeline
+        .Where(t => t.ClosingAtUtc > nowUtc.AddHours(48) && t.ClosingAtUtc <= nowUtc.AddDays(7))
+        .ToList();
+
+    var submitted = Model
+        .Where(t => t.Status == TenderStatus.Submitted)
         .OrderByDescending(t => t.UpdatedAtUtc)
         .ToList();
 
-    ViewData["Subtitle"] = $"Urgent {urgent.Count} | This week {thisWeek.Count} | Active {active.Count} | History {history.Count}";
+    var history = Model
+        .Where(t => IsResolved(t.Status))
+        .OrderByDescending(t => t.UpdatedAtUtc)
+        .ToList();
+
+    var nextDeadline = pipeline
+        .Where(t => t.ClosingAtUtc >= nowUtc)
+        .OrderBy(t => t.ClosingAtUtc)
+        .FirstOrDefault()
+        ?? pipeline.FirstOrDefault();
+
+    var ownerLoad = pipeline
+        .GroupBy(OwnerLabel)
+        .Select(group => new
+        {
+            Owner = group.Key,
+            Count = group.Count(),
+            NextClosingAtUtc = group.Min(t => t.ClosingAtUtc)
+        })
+        .OrderByDescending(x => x.Count)
+        .ThenBy(x => x.NextClosingAtUtc)
+        .Take(4)
+        .ToList();
+
+    ViewData["Subtitle"] = $"{pipeline.Count} in pipeline | {submitted.Count} awaiting outcome | {history.Count(t => t.Status == TenderStatus.Won)} wins | {overdue.Count} overdue";
+
+    var dueNext48Table = new TenderTableVm
+    {
+        TableId = "dashboard-due-now-table",
+        Items = dueNext48Hours.Concat(overdue).DistinctBy(t => t.Id).OrderBy(t => t.ClosingAtUtc).Take(8).ToList(),
+        EmptyMessage = "Nothing is closing in the next 48 hours.",
+        EnableSearch = false,
+        EnablePaging = false,
+        EnableInfo = false,
+        EnableLengthChange = false,
+        PageLength = 8,
+        DefaultOrderColumn = "closingAtUtc",
+        DefaultOrderDirection = "asc",
+        SearchPlaceholder = "Search due soon"
+    };
+
+    var submittedTable = new TenderTableVm
+    {
+        TableId = "dashboard-submitted-table",
+        Items = submitted.Take(8).ToList(),
+        EmptyMessage = "No tenders are waiting on an outcome.",
+        EnableSearch = false,
+        EnablePaging = false,
+        EnableInfo = false,
+        EnableLengthChange = false,
+        PageLength = 8,
+        DefaultOrderColumn = "updatedAt",
+        DefaultOrderDirection = "desc",
+        SearchPlaceholder = "Search submitted tenders"
+    };
+
+    var historyTable = new TenderTableVm
+    {
+        TableId = "dashboard-history-table",
+        Items = history.Take(10).ToList(),
+        EmptyMessage = "No completed outcomes yet.",
+        EnableSearch = false,
+        EnablePaging = false,
+        EnableInfo = false,
+        EnableLengthChange = false,
+        PageLength = 10,
+        DefaultOrderColumn = "updatedAt",
+        DefaultOrderDirection = "desc",
+        SearchPlaceholder = "Search outcomes"
+    };
 }
 
 <partial name="_PageHeader" />
 
-<partial name="_TenderSection" model="@(new Tenderizer.Views.Home.TenderSectionVm("Urgent (next 48h)", urgent))" />
-<partial name="_TenderSection" model="@(new Tenderizer.Views.Home.TenderSectionVm("This Week (next 7 days)", thisWeek))" />
-<partial name="_TenderSection" model="@(new Tenderizer.Views.Home.TenderSectionVm("Active", active))" />
-<partial name="_TenderSection" model="@(new Tenderizer.Views.Home.TenderSectionVm("History", history))" />
+<div class="row g-3 mb-3">
+    <div class="col-12 col-md-6 col-xl-3">
+        <section class="card dashboard-stat-card h-100">
+            <div class="card-body">
+                <div class="dashboard-stat-label">Pipeline</div>
+                <div class="dashboard-stat-value">@pipeline.Count</div>
+                <div class="dashboard-stat-meta">@draft.Count draft, @identified.Count identified, @inProgress.Count in progress</div>
+            </div>
+        </section>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+        <section class="card dashboard-stat-card h-100">
+            <div class="card-body">
+                <div class="dashboard-stat-label">Closing Soon</div>
+                <div class="dashboard-stat-value">@(@dueNext48Hours.Count + overdue.Count)</div>
+                <div class="dashboard-stat-meta">@dueThisWeek.Count more due in the next 7 days</div>
+            </div>
+        </section>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+        <section class="card dashboard-stat-card h-100">
+            <div class="card-body">
+                <div class="dashboard-stat-label">Awaiting Outcome</div>
+                <div class="dashboard-stat-value">@submitted.Count</div>
+                <div class="dashboard-stat-meta">Submitted tenders still waiting on a result</div>
+            </div>
+        </section>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+        <section class="card dashboard-stat-card h-100">
+            <div class="card-body">
+                <div class="dashboard-stat-label">Win Rate</div>
+                <div class="dashboard-stat-value">@(history.Count == 0 ? "0%" : $"{Math.Round((double)history.Count(t => t.Status == TenderStatus.Won) / history.Count * 100):0}%")</div>
+                <div class="dashboard-stat-meta">@history.Count(t => t.Status == TenderStatus.Won) wins, @history.Count(t => t.Status == TenderStatus.Lost) losses, @history.Count(t => t.Status == TenderStatus.Cancelled) cancelled</div>
+            </div>
+        </section>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-12 col-xxl-8">
+        <section class="card dashboard-kanban-card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="dashboard-section-title mb-1">Active Pipeline</h2>
+                    <div class="text-muted small">A kanban view of live tenders from draft through active delivery work.</div>
+                </div>
+                <a class="btn btn-sm btn-outline-secondary" asp-controller="Tenders" asp-action="Index">Open list</a>
+            </div>
+            <div class="card-body">
+                <div class="dashboard-kanban-grid">
+                    <partial name="_KanbanColumn" model="@(new Tenderizer.Views.Home.TenderSectionVm("Draft", draft))" />
+                    <partial name="_KanbanColumn" model="@(new Tenderizer.Views.Home.TenderSectionVm("Identified", identified))" />
+                    <partial name="_KanbanColumn" model="@(new Tenderizer.Views.Home.TenderSectionVm("In Progress", inProgress))" />
+                </div>
+            </div>
+        </section>
+    </div>
+    <div class="col-12 col-xxl-4">
+        <div class="dashboard-side-stack">
+            <section class="card dashboard-spotlight-card">
+                <div class="card-body">
+                    <div class="dashboard-stat-label">Next Key Date</div>
+                    @if (nextDeadline is null)
+                    {
+                        <div class="dashboard-spotlight-empty">No active pipeline items yet.</div>
+                    }
+                    else
+                    {
+                        <div class="dashboard-spotlight-title">@nextDeadline.Name</div>
+                        <div class="dashboard-spotlight-meta">@ClientLabel(nextDeadline)</div>
+                        <div class="dashboard-spotlight-timing @DeadlineClass(nextDeadline.ClosingAtUtc)">@FormatCountdown(nextDeadline.ClosingAtUtc)</div>
+                        <dl class="dashboard-detail-list">
+                            <div>
+                                <dt>Closing</dt>
+                                <dd>@nextDeadline.ClosingAtUtc.ToString("yyyy-MM-dd HH:mm") UTC</dd>
+                            </div>
+                            <div>
+                                <dt>Owner</dt>
+                                <dd>@OwnerLabel(nextDeadline)</dd>
+                            </div>
+                            <div>
+                                <dt>Reference</dt>
+                                <dd>@ReferenceLabel(nextDeadline)</dd>
+                            </div>
+                        </dl>
+                        <div class="d-flex gap-2">
+                            <a class="btn btn-sm btn-outline-primary" asp-controller="Tenders" asp-action="Details" asp-route-id="@nextDeadline.Id">View</a>
+                            @if (CanEdit(nextDeadline))
+                            {
+                                <a class="btn btn-sm btn-outline-secondary" asp-controller="Tenders" asp-action="Edit" asp-route-id="@nextDeadline.Id">Edit</a>
+                            }
+                        </div>
+                    }
+                </div>
+            </section>
+
+            <section class="card dashboard-owners-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                            <h2 class="dashboard-section-title mb-1">Owner Load</h2>
+                            <div class="text-muted small">Who has the most active tenders right now.</div>
+                        </div>
+                    </div>
+
+                    @if (ownerLoad.Count == 0)
+                    {
+                        <div class="text-muted small">No active tenders to distribute.</div>
+                    }
+                    else
+                    {
+                        foreach (var owner in ownerLoad)
+                        {
+                            <div class="dashboard-owner-row">
+                                <div>
+                                    <div class="dashboard-owner-name">@owner.Owner</div>
+                                    <div class="text-muted small">Next closing @owner.NextClosingAtUtc.ToString("dd MMM HH:mm") UTC</div>
+                                </div>
+                                <span class="dashboard-owner-count">@owner.Count</span>
+                            </div>
+                        }
+                    }
+                </div>
+            </section>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-12 col-xl-6">
+        <section class="card section-card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="dashboard-section-title mb-1">Deadline Queue</h2>
+                    <div class="text-muted small">Overdue and next-up tenders that need attention first.</div>
+                </div>
+                <span class="text-muted small">@dueNext48Table.Items.Count items</span>
+            </div>
+            <div class="card-body">
+                <partial name="_TenderTable" model="dueNext48Table" />
+            </div>
+        </section>
+    </div>
+    <div class="col-12 col-xl-6">
+        <section class="card section-card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="dashboard-section-title mb-1">Awaiting Outcome</h2>
+                    <div class="text-muted small">Recently submitted tenders that still need a decision captured.</div>
+                </div>
+                <span class="text-muted small">@submitted.Count items</span>
+            </div>
+            <div class="card-body">
+                <partial name="_TenderTable" model="submittedTable" />
+            </div>
+        </section>
+    </div>
+    <div class="col-12">
+        <section class="card section-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="dashboard-section-title mb-1">Recent Outcomes</h2>
+                    <div class="text-muted small">Closed tenders and final results, newest first.</div>
+                </div>
+                <span class="text-muted small">@history.Count items</span>
+            </div>
+            <div class="card-body">
+                <partial name="_TenderTable" model="historyTable" />
+            </div>
+        </section>
+    </div>
+</div>

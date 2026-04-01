@@ -161,7 +161,7 @@ public sealed class TenderServiceTests
             Status = TenderStatus.InProgress,
             ReferenceNumber = " r2 ",
             Client = " c ",
-            Category = " cat ",
+            Category = TenderCategory.Other,
         };
 
         await service.UpdateAsync(id, dto, userId: "owner", isAdmin: false);
@@ -170,7 +170,7 @@ public sealed class TenderServiceTests
         Assert.Equal("Tender A2", after.Name);
         Assert.Equal("r2", after.ReferenceNumber);
         Assert.Equal("c", after.Client);
-        Assert.Equal("cat", after.Category);
+        Assert.Equal(TenderCategory.Other.ToStorageValue(), after.Category);
         Assert.Equal(TenderStatus.InProgress, after.Status);
         Assert.Equal("owner", after.OwnerUserId);
         Assert.True(after.UpdatedAtUtc > before.UpdatedAtUtc);

@@ -1,0 +1,58 @@
+@using Microsoft.AspNetCore.Mvc.Rendering
+@using Tenderizer.ViewModels
+@model LibraryDocumentCreateVm
+
+@{
+    ViewData["Title"] = "New Library Document";
+    ViewData["Subtitle"] = "Create a reusable document and upload its first immutable version.";
+
+    var backLink = new TagBuilder("a");
+    backLink.AddCssClass("btn btn-outline-secondary");
+    backLink.Attributes["href"] = Url.Action("Index")!;
+    backLink.InnerHtml.Append("Back To List");
+    ViewData["HeaderActions"] = backLink;
+}
+
+<partial name="_PageHeader" />
+
+<div class="card">
+    <div class="card-body">
+        <form method="post" asp-action="Create" enctype="multipart/form-data" class="row g-3">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            @Html.AntiForgeryToken()
+
+            <div class="col-md-6">
+                <label asp-for="Name" class="form-label"></label>
+                <input asp-for="Name" class="form-control" />
+                <span asp-validation-for="Name" class="text-danger"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="File" class="form-label"></label>
+                <input asp-for="File" class="form-control" type="file" />
+                <span asp-validation-for="File" class="text-danger"></span>
+            </div>
+
+            <div class="col-md-8">
+                <label asp-for="Description" class="form-label"></label>
+                <input asp-for="Description" class="form-control" />
+                <span asp-validation-for="Description" class="text-danger"></span>
+            </div>
+
+            <div class="col-md-4">
+                <label asp-for="ExpiryDateUtc" class="form-label"></label>
+                <input asp-for="ExpiryDateUtc" class="form-control" type="date" />
+                <span asp-validation-for="ExpiryDateUtc" class="text-danger"></span>
+            </div>
+
+            <div class="col-12 d-flex gap-2">
+                <button type="submit" class="btn btn-primary">Create</button>
+                <a class="btn btn-outline-secondary" asp-action="Index">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

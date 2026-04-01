@@ -268,9 +268,35 @@ No charts in V1.
 * Actions visible at top:
 
   * Edit (always)
+  * Documents (owner/admin)
   * Delete (Admin only, SweetAlert)
 
 No tabs in V1 unless content explodes.
+
+---
+
+## Documents UI
+
+Document management is now split into focused screens.
+
+### Library Documents
+
+* Index page is list-only.
+* Create reusable documents on a dedicated page.
+* Manage version history and upload new versions on the details page.
+
+Do not mix create forms and version tables on the same list view.
+
+### Tender Create
+
+* The create tender page may include one optional file input for the tender advert / RFP document.
+* Treat it as a helper upload during creation, not a full document-management page.
+
+### Tender Documents
+
+* Tender document management lives on its own page.
+* Keep upload and attach-from-library forms in separate cards.
+* The attached-document table remains the primary data surface.
 
 ---
 
@@ -282,8 +308,7 @@ Top nav:
 
 * Dashboard
 * Tenders
-* Optional: Privacy
-
+* Library Docs (Admin only)
 No feature links until the feature exists.
 
 ---

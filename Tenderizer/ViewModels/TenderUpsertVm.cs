@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 using Tenderizer.Models;
 
 namespace Tenderizer.ViewModels;
@@ -15,8 +16,7 @@ public sealed class TenderUpsertVm
     [MaxLength(200)]
     public string? Client { get; set; }
 
-    [MaxLength(100)]
-    public string? Category { get; set; }
+    public TenderCategory? Category { get; set; }
 
     [Required]
     [Display(Name = "Closing (UTC)")]
@@ -27,4 +27,7 @@ public sealed class TenderUpsertVm
 
     [Display(Name = "Owner")]
     public string? OwnerUserId { get; set; }
+
+    [Display(Name = "Tender / RFP document")]
+    public IFormFile? TenderRequestDocument { get; set; }
 }

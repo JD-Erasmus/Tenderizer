@@ -3,13 +3,14 @@
 
 @{
     ViewData["Title"] = "Create Tender";
+    ViewData["ShowTenderRequestUpload"] = true;
 }
 
 <partial name="_PageHeader" />
 
 <div class="card mb-3">
     <div class="card-body">
-        <form method="post">
+        <form method="post" enctype="multipart/form-data">
             <partial name="_TenderForm" model="Model" />
 
             <div class="d-flex gap-2">

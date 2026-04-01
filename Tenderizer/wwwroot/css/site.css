@@ -304,6 +304,216 @@ a:hover {
   margin-bottom: 1.5rem;
 }
 
+.dashboard-stat-card,
+.dashboard-kanban-card,
+.dashboard-spotlight-card,
+.dashboard-owners-card {
+  height: 100%;
+}
+
+.dashboard-stat-card > .card-body,
+.dashboard-spotlight-card > .card-body,
+.dashboard-owners-card > .card-body {
+  padding: 1.25rem;
+}
+
+.dashboard-stat-label,
+.dashboard-section-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.dashboard-stat-label {
+  color: var(--app-muted);
+}
+
+.dashboard-stat-value,
+.dashboard-spotlight-title {
+  margin-top: 0.45rem;
+  font-family: "Segoe UI Variable Display", "Aptos Display", "Segoe UI Variable Text", sans-serif;
+  font-size: clamp(1.7rem, 2vw, 2.2rem);
+  font-weight: 700;
+  letter-spacing: -0.06em;
+}
+
+.dashboard-stat-meta,
+.dashboard-spotlight-meta,
+.dashboard-kanban-item-meta,
+.dashboard-spotlight-empty {
+  color: var(--app-muted);
+  font-size: 0.9rem;
+}
+
+.dashboard-side-stack {
+  display: grid;
+  gap: 1rem;
+}
+
+.dashboard-kanban-card > .card-header,
+.section-card > .card-header {
+  padding: 1.15rem 1.25rem 0.75rem;
+}
+
+.dashboard-kanban-card > .card-body {
+  padding: 0 1rem 1rem;
+}
+
+.dashboard-section-title {
+  margin: 0;
+  color: var(--app-ink);
+  font-size: 0.78rem;
+}
+
+.dashboard-kanban-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.dashboard-kanban-column {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--app-border);
+  border-radius: 1.2rem;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(245, 239, 230, 0.72));
+}
+
+.dashboard-kanban-column-header {
+  margin-bottom: 0.85rem;
+}
+
+.dashboard-kanban-column-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.dashboard-kanban-list {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.dashboard-kanban-item {
+  padding: 1rem;
+  border: 1px solid rgba(61, 71, 88, 0.1);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 16px 30px rgba(15, 23, 42, 0.06);
+}
+
+.dashboard-kanban-item-title {
+  color: var(--app-ink);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.dashboard-kanban-item-title:hover {
+  color: var(--app-accent-strong);
+}
+
+.dashboard-kanban-item-meta + .dashboard-kanban-item-meta {
+  margin-top: 0.35rem;
+}
+
+.dashboard-kanban-empty {
+  padding: 1rem;
+  border: 1px dashed rgba(61, 71, 88, 0.18);
+  border-radius: 1rem;
+  color: var(--app-muted);
+  font-size: 0.9rem;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.52);
+}
+
+.dashboard-deadline-pill,
+.dashboard-spotlight-timing {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.dashboard-spotlight-timing {
+  margin: 0.95rem 0 1rem;
+}
+
+.dashboard-deadline-pill.is-overdue,
+.dashboard-spotlight-timing.is-overdue {
+  color: #991b1b;
+  background: rgba(185, 28, 28, 0.12);
+}
+
+.dashboard-deadline-pill.is-soon,
+.dashboard-spotlight-timing.is-soon {
+  color: #9a5d00;
+  background: rgba(217, 119, 6, 0.14);
+}
+
+.dashboard-deadline-pill.is-steady,
+.dashboard-spotlight-timing.is-steady {
+  color: #125373;
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.dashboard-detail-list {
+  display: grid;
+  gap: 0.8rem;
+  margin: 0 0 1rem;
+}
+
+.dashboard-detail-list dt {
+  margin-bottom: 0.15rem;
+  color: var(--app-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.dashboard-detail-list dd {
+  margin: 0;
+  color: var(--app-ink);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.dashboard-owner-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.8rem 0;
+  border-top: 1px solid rgba(61, 71, 88, 0.08);
+}
+
+.dashboard-owner-row:first-of-type {
+  padding-top: 0.1rem;
+  border-top: 0;
+}
+
+.dashboard-owner-name {
+  font-weight: 600;
+}
+
+.dashboard-owner-count {
+  min-width: 2.2rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(24, 32, 44, 0.07);
+  text-align: center;
+  font-weight: 700;
+}
+
 .section-card > .card-header {
   padding: 1.15rem 1.35rem 0.8rem;
   border: 0;
@@ -655,6 +865,10 @@ a:hover {
     margin-top: 0.85rem;
   }
 
+  .dashboard-kanban-grid {
+    grid-template-columns: 1fr;
+  }
+
   .page-header,
   .dashboard-hero,
   .toolbar-panel,
@@ -669,6 +883,13 @@ a:hover {
 @media (max-width: 767.98px) {
   html {
     font-size: 15px;
+  }
+
+  .dashboard-stat-card > .card-body,
+  .dashboard-spotlight-card > .card-body,
+  .dashboard-owners-card > .card-body,
+  .dashboard-kanban-column {
+    padding: 1rem;
   }
 
   .page-title {

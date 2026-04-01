@@ -1,13 +1,16 @@
 Tenderizer
 ==========
 
-Tenderizer is an internal ASP.NET Core 8 MVC application for tracking tenders, ownership, closing dates, and reminder emails. It stores tenders in SQL Server, uses ASP.NET Identity for authentication, and runs an in-process background worker that sends reminder emails ahead of closing time.
+Tenderizer is an internal ASP.NET Core 8 MVC application for tracking tenders, ownership, closing dates, reminder emails, and controlled tender document storage. It stores tenders in SQL Server, uses ASP.NET Identity for authentication, and runs an in-process background worker that sends reminder emails ahead of closing time.
 
 Overview
 --------
 
 - Authenticated users can view the dashboard, tender list, and tender details.
 - Any authenticated user can create tenders.
+- Users can optionally upload the tender advert / RFP document during tender creation.
+- Tenders can hold multiple private document attachments.
+- Admins can manage reusable library documents with immutable versions.
 - Only the owner of a tender or an `Admin` can edit it.
 - Only an `Admin` can delete it.
 - Reminder emails are generated for active tenders and sent by a hosted background worker.
@@ -61,6 +64,7 @@ Important settings:
 - `ConnectionStrings:DefaultConnection`: SQL Server connection for `ApplicationDbContext`
 - `Email`: SMTP settings used for tender reminders and Identity confirmation emails
 - `IdentitySeed`: optional startup seed for the initial admin user
+- `DocumentStorage`: private file storage root, max upload size, and allowed extensions
 - `ReminderOffsetsMinutes`: optional minute offsets for reminder generation
 
 If `ReminderOffsetsMinutes` is not supplied, the scheduler defaults to reminders at 7 days, 3 days, and 24 hours before closing.
@@ -96,11 +100,5 @@ Documentation
 Implementation-focused docs live under `Tenderizer/Docs`:
 
 - `Architecture.md`
-- `Domain-Model.md`
-- `Background-Processing.md`
-- `Security-and-Identity.md`
-- `Configuration.md`
-- `Development-Guide.md`
-- `Testing Strategy.md`
+- `FileStorage.md`
 - `UI Instructions.md`
-- `V1 Agent Instructions.md`

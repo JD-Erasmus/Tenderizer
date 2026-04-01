@@ -1,0 +1,112 @@
+@using System.Security.Claims
+@using Tenderizer.ViewModels
+@using Tenderizer.Views.Home
+@model TenderSectionVm
+
+@{
+    var nowUtc = DateTimeOffset.UtcNow;
+    var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+    var isAdmin = User.IsInRole("Admin");
+
+    string OwnerLabel(TenderListItemVm tender) => string.IsNullOrWhiteSpace(tender.OwnerDisplayName) ? "Unassigned" : tender.OwnerDisplayName;
+    string ClientLabel(TenderListItemVm tender) => string.IsNullOrWhiteSpace(tender.Client) ? "No client yet" : tender.Client!;
+    string ReferenceLabel(TenderListItemVm tender)
+    {
+        var parts = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(tender.ReferenceNumber))
+        {
+            parts.Add(tender.ReferenceNumber!);
+        }
+
+        if (!string.IsNullOrWhiteSpace(tender.Category))
+        {
+            parts.Add(tender.Category!);
+        }
+
+        return parts.Count == 0 ? "No reference or category yet" : string.Join(" | ", parts);
+    }
+
+    string DeadlineClass(DateTimeOffset closingAtUtc)
+    {
+        if (closingAtUtc < nowUtc)
+        {
+            return "is-overdue";
+        }
+
+        if (closingAtUtc <= nowUtc.AddHours(48))
+        {
+            return "is-soon";
+        }
+
+        return "is-steady";
+    }
+
+    string FormatCountdown(DateTimeOffset closingAtUtc)
+    {
+        var delta = closingAtUtc - nowUtc;
+
+        if (delta < TimeSpan.Zero)
+        {
+            var overdue = delta.Duration();
+            return overdue.TotalHours < 24
+                ? $"Overdue by {Math.Ceiling(overdue.TotalHours):0}h"
+                : $"Overdue by {Math.Ceiling(overdue.TotalDays):0}d";
+        }
+
+        if (delta.TotalHours < 24)
+        {
+            return $"Closes in {Math.Ceiling(delta.TotalHours):0}h";
+        }
+
+        if (delta.TotalDays < 7)
+        {
+            return $"Closes in {Math.Ceiling(delta.TotalDays):0}d";
+        }
+
+        return $"Closes {closingAtUtc:dd MMM}";
+    }
+}
+
+<section class="dashboard-kanban-column">
+    <header class="dashboard-kanban-column-header">
+        <div>
+            <h3 class="dashboard-kanban-column-title">@Model.Title</h3>
+            <div class="text-muted small">@Model.Items.Count item@(Model.Items.Count == 1 ? string.Empty : "s")</div>
+        </div>
+    </header>
+
+    @if (Model.Items.Count == 0)
+    {
+        <div class="dashboard-kanban-empty">No tenders in this lane.</div>
+    }
+    else
+    {
+        <div class="dashboard-kanban-list">
+            @foreach (var tender in Model.Items)
+            {
+                <article class="dashboard-kanban-item">
+                    <div class="d-flex justify-content-between align-items-start gap-2">
+                        <div>
+                            <a class="dashboard-kanban-item-title" asp-controller="Tenders" asp-action="Details" asp-route-id="@tender.Id">@tender.Name</a>
+                            <div class="text-muted small mt-1">@ClientLabel(tender)</div>
+                        </div>
+                        <span class="dashboard-deadline-pill @DeadlineClass(tender.ClosingAtUtc)">@FormatCountdown(tender.ClosingAtUtc)</span>
+                    </div>
+
+                    <div class="dashboard-kanban-item-meta">@ReferenceLabel(tender)</div>
+                    <div class="dashboard-kanban-item-meta">Owner: @OwnerLabel(tender)</div>
+                    <div class="dashboard-kanban-item-meta">Closing: @tender.ClosingAtUtc.ToString("yyyy-MM-dd HH:mm") UTC</div>
+
+                    <div class="d-flex gap-2 mt-3">
+                        <a class="btn btn-sm btn-outline-primary" asp-controller="Tenders" asp-action="Details" asp-route-id="@tender.Id">View</a>
+                        @if (isAdmin || string.Equals(currentUserId, tender.OwnerUserId, StringComparison.Ordinal))
+                        {
+                            <a class="btn btn-sm btn-outline-secondary" asp-controller="Tenders" asp-action="Edit" asp-route-id="@tender.Id">Edit</a>
+                        }
+                    </div>
+                </article>
+            }
+        </div>
+    }
+</section>

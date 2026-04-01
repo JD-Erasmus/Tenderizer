@@ -22,6 +22,10 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddScoped<IReminderScheduler, ReminderScheduler>();
 builder.Services.AddScoped<ITenderService, TenderService>();
 builder.Services.AddScoped<IUserLookupService, UserLookupService>();
+builder.Services.Configure<DocumentStorageOptions>(builder.Configuration.GetSection("DocumentStorage"));
+builder.Services.AddScoped<IPrivateFileStore, PrivateFileStore>();
+builder.Services.AddScoped<ILibraryDocumentService, LibraryDocumentService>();
+builder.Services.AddScoped<ITenderDocumentService, TenderDocumentService>();
 
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email"));
 builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
