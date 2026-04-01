@@ -363,3 +363,5 @@ MigrationBackup/
 FodyWeavers.xsd
 /.dotnet/.dotnet/TelemetryStorageService
 /.dotnet/.dotnet
+/Tenderizer/App_Data/Documents/library/83210bd2-d5b7-4cac-ad39-c574ae65e3c6
+/Tenderizer/App_Data/Documents/tenders/8eb0eed8-211d-431a-a517-ae94c2eab926/uploads
