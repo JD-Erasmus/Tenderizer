@@ -1,0 +1,61 @@
+@using Tenderizer.ViewModels
+@model TenderTableVm
+
+@{
+    var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+    var isAdmin = User.IsInRole("Admin");
+}
+
+@if (Model.Items.Count == 0)
+{
+    <div class="p-3 text-muted small">@Model.EmptyMessage</div>
+}
+else
+{
+    <div class="table-responsive">
+        <table id="@Model.TableId"
+               class="table table-striped w-100 mb-0 js-data-table"
+               data-datatable-searching="@Model.EnableSearch.ToString().ToLowerInvariant()"
+               data-datatable-paging="@Model.EnablePaging.ToString().ToLowerInvariant()"
+               data-datatable-info="@Model.EnableInfo.ToString().ToLowerInvariant()"
+               data-datatable-length-change="@Model.EnableLengthChange.ToString().ToLowerInvariant()"
+               data-datatable-page-length="@Model.PageLength"
+               data-datatable-order-column="@Model.DefaultOrderColumn"
+               data-datatable-order-dir="@Model.DefaultOrderDirection"
+               data-datatable-search-placeholder="@Model.SearchPlaceholder">
+            <thead>
+                <tr>
+                    <th data-dt-name="name">Name</th>
+                    <th data-dt-name="client">Client</th>
+                    <th data-dt-name="status">Status</th>
+                    <th data-dt-name="closingAtUtc">Closing (UTC)</th>
+                    <th data-dt-name="actions" data-dt-order="disable" data-dt-searchable="false" class="text-end">Actions</th>
+                    <th data-dt-name="ownerDisplayName" data-dt-visible="false">Owner</th>
+                    <th data-dt-name="ownerUserId" data-dt-visible="false">Owner Id</th>
+                    <th data-dt-name="updatedAt" data-dt-visible="false" data-dt-searchable="false">Updated</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var tender in Model.Items)
+                {
+                    <tr>
+                        <td>@tender.Name</td>
+                        <td>@tender.Client</td>
+                        <td><partial name="_TenderStatusBadge" model="tender.Status" /></td>
+                        <td>@tender.ClosingAtUtc.ToString("yyyy-MM-dd HH:mm") UTC</td>
+                        <td class="text-end">
+                            <a class="btn btn-sm btn-outline-primary" asp-controller="Tenders" asp-action="Details" asp-route-id="@tender.Id">View</a>
+                            @if (isAdmin || string.Equals(currentUserId, tender.OwnerUserId, StringComparison.Ordinal))
+                            {
+                                <a class="btn btn-sm btn-outline-secondary" asp-controller="Tenders" asp-action="Edit" asp-route-id="@tender.Id">Edit</a>
+                            }
+                        </td>
+                        <td>@tender.OwnerDisplayName</td>
+                        <td>@tender.OwnerUserId</td>
+                        <td>@tender.UpdatedAtUtc.ToString("O")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

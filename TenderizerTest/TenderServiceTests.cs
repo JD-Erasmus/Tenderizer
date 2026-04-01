@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Tenderizer.Dtos;
 using Tenderizer.Models;
@@ -176,7 +177,7 @@ public sealed class TenderServiceTests
     }
 
     [Fact]
-    public async Task GetDetailsAsync_WhenNonOwnerNonAdmin_ThrowsUnauthorized()
+    public async Task GetDetailsAsync_WhenNonOwnerNonAdmin_ReturnsDetails()
     {
         var (db, connection) = await TestDbFactory.CreateSqliteDbContextAsync();
         await using var _ = db;
@@ -193,7 +194,94 @@ public sealed class TenderServiceTests
             Status = TenderStatus.Draft,
         }, userId: "owner", isAdmin: false);
 
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => service.GetDetailsAsync(id, userId: "other", isAdmin: false));
+        var details = await service.GetDetailsAsync(id, userId: "other", isAdmin: false);
+
+        Assert.Equal(id, details.Id);
+        Assert.Equal("owner", details.OwnerUserId);
+    }
+
+    [Fact]
+    public async Task GetListAsync_IncludesOwnerDisplayName()
+    {
+        var (db, connection) = await TestDbFactory.CreateSqliteDbContextAsync();
+        await using var _ = db;
+        await using var __ = connection;
+
+        db.Users.Add(new IdentityUser
+        {
+            Id = "owner",
+            UserName = "owner@local.test",
+            NormalizedUserName = "OWNER@LOCAL.TEST",
+            Email = "owner@local.test",
+            NormalizedEmail = "OWNER@LOCAL.TEST",
+        });
+
+        var scheduler = new ReminderScheduler(db, TestDbFactory.CreateConfiguration());
+        var service = new TenderService(db, scheduler);
+
+        var id = await service.CreateAsync(new TenderUpsertDto
+        {
+            Name = "Tender A",
+            OwnerUserId = "owner",
+            ClosingAtUtc = DateTimeOffset.UtcNow.AddDays(5),
+            Status = TenderStatus.Draft,
+        }, userId: "admin", isAdmin: true);
+
+        var item = Assert.Single(await service.GetListAsync());
+
+        Assert.Equal(id, item.Id);
+        Assert.Equal("owner@local.test", item.OwnerDisplayName);
+        Assert.True(item.UpdatedAtUtc != default);
+    }
+
+    [Fact]
+    public async Task UpdateStatusAsync_WhenOwner_UpdatesStatusAndClearsPendingReminders()
+    {
+        var (db, connection) = await TestDbFactory.CreateSqliteDbContextAsync();
+        await using var _ = db;
+        await using var __ = connection;
+
+        var scheduler = new ReminderScheduler(db, TestDbFactory.CreateConfiguration());
+        var service = new TenderService(db, scheduler);
+
+        var id = await service.CreateAsync(new TenderUpsertDto
+        {
+            Name = "Tender A",
+            OwnerUserId = "owner",
+            ClosingAtUtc = DateTimeOffset.UtcNow.AddDays(5),
+            Status = TenderStatus.Draft,
+        }, userId: "owner", isAdmin: false);
+
+        var before = await db.Tenders.AsNoTracking().SingleAsync(t => t.Id == id);
+        await Task.Delay(20);
+
+        await service.UpdateStatusAsync(id, TenderStatus.Submitted, userId: "owner", isAdmin: false);
+
+        var after = await db.Tenders.AsNoTracking().SingleAsync(t => t.Id == id);
+        Assert.Equal(TenderStatus.Submitted, after.Status);
+        Assert.True(after.UpdatedAtUtc > before.UpdatedAtUtc);
+        Assert.False(await db.TenderReminders.AsNoTracking().AnyAsync(r => r.TenderId == id && r.SentAtUtc == null));
+    }
+
+    [Fact]
+    public async Task UpdateStatusAsync_WhenNonOwnerNonAdmin_ThrowsUnauthorized()
+    {
+        var (db, connection) = await TestDbFactory.CreateSqliteDbContextAsync();
+        await using var _ = db;
+        await using var __ = connection;
+
+        var scheduler = new ReminderScheduler(db, TestDbFactory.CreateConfiguration());
+        var service = new TenderService(db, scheduler);
+
+        var id = await service.CreateAsync(new TenderUpsertDto
+        {
+            Name = "Tender A",
+            OwnerUserId = "owner",
+            ClosingAtUtc = DateTimeOffset.UtcNow.AddDays(5),
+            Status = TenderStatus.Draft,
+        }, userId: "owner", isAdmin: false);
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => service.UpdateStatusAsync(id, TenderStatus.Won, userId: "intruder", isAdmin: false));
     }
 
     [Fact]

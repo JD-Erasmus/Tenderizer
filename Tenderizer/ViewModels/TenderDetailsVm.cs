@@ -12,6 +12,7 @@ public sealed class TenderDetailsVm
     public DateTimeOffset ClosingAtUtc { get; set; }
     public TenderStatus Status { get; set; }
     public string OwnerUserId { get; set; } = string.Empty;
+    public string OwnerDisplayName { get; set; } = string.Empty;
     public DateTimeOffset CreatedAtUtc { get; set; }
     public DateTimeOffset UpdatedAtUtc { get; set; }
 }

@@ -38,69 +38,55 @@ public sealed class TenderService : ITenderService
         var utcNow = DateTimeOffset.UtcNow;
         var historyCutoff = utcNow.AddDays(-90);
 
-        return await _db.Tenders
-            .AsNoTracking()
+        var items = await ProjectTenderListItems()
             .Where(t =>
                 (!TerminalStatuses.Contains(t.Status) && t.ClosingAtUtc >= utcNow.AddDays(-365))
                 || (TerminalStatuses.Contains(t.Status) && t.UpdatedAtUtc >= historyCutoff))
-            .OrderBy(t => t.ClosingAtUtc)
-            .Select(t => new TenderListItemVm
-            {
-                Id = t.Id,
-                Name = t.Name,
-                Client = t.Client,
-                ClosingAtUtc = t.ClosingAtUtc,
-                Status = t.Status,
-                OwnerUserId = t.OwnerUserId,
-            })
             .ToListAsync(cancellationToken);
+
+        return items
+            .OrderBy(t => t.ClosingAtUtc)
+            .ToList();
     }
 
     public async Task<IReadOnlyList<TenderListItemVm>> GetListAsync(CancellationToken cancellationToken = default)
     {
-        return await _db.Tenders
-            .AsNoTracking()
-            .OrderBy(t => t.ClosingAtUtc)
-            .Select(t => new TenderListItemVm
-            {
-                Id = t.Id,
-                Name = t.Name,
-                Client = t.Client,
-                ClosingAtUtc = t.ClosingAtUtc,
-                Status = t.Status,
-                OwnerUserId = t.OwnerUserId,
-            })
+        var items = await ProjectTenderListItems()
             .ToListAsync(cancellationToken);
+
+        return items
+            .OrderBy(t => t.ClosingAtUtc)
+            .ToList();
     }
 
     public async Task<TenderDetailsVm> GetDetailsAsync(Guid id, string userId, bool isAdmin, CancellationToken cancellationToken = default)
     {
-        var vm = await _db.Tenders
-            .AsNoTracking()
-            .Where(t => t.Id == id)
-            .Select(t => new TenderDetailsVm
+        var vm = await (
+            from tender in _db.Tenders.AsNoTracking()
+            join owner in _db.Users.AsNoTracking() on tender.OwnerUserId equals owner.Id into ownerGroup
+            from owner in ownerGroup.DefaultIfEmpty()
+            where tender.Id == id
+            select new TenderDetailsVm
             {
-                Id = t.Id,
-                Name = t.Name,
-                ReferenceNumber = t.ReferenceNumber,
-                Client = t.Client,
-                Category = t.Category,
-                ClosingAtUtc = t.ClosingAtUtc,
-                Status = t.Status,
-                OwnerUserId = t.OwnerUserId,
-                CreatedAtUtc = t.CreatedAtUtc,
-                UpdatedAtUtc = t.UpdatedAtUtc,
+                Id = tender.Id,
+                Name = tender.Name,
+                ReferenceNumber = tender.ReferenceNumber,
+                Client = tender.Client,
+                Category = tender.Category,
+                ClosingAtUtc = tender.ClosingAtUtc,
+                Status = tender.Status,
+                OwnerUserId = tender.OwnerUserId,
+                OwnerDisplayName = owner == null
+                    ? tender.OwnerUserId
+                    : owner.Email ?? owner.UserName ?? owner.Id,
+                CreatedAtUtc = tender.CreatedAtUtc,
+                UpdatedAtUtc = tender.UpdatedAtUtc,
             })
             .SingleOrDefaultAsync(cancellationToken);
 
         if (vm is null)
         {
             throw new KeyNotFoundException("Tender not found.");
-        }
-
-        if (!isAdmin && !string.Equals(vm.OwnerUserId, userId, StringComparison.Ordinal))
-        {
-            throw new UnauthorizedAccessException("Only the owner or an admin can view this tender.");
         }
 
         return vm;
@@ -182,14 +168,37 @@ public sealed class TenderService : ITenderService
         // - terminal => clear pending
         // - closing changed => regenerate (includes status rules)
         // - status changed => regenerate (includes terminal clear)
-        if (TerminalStatuses.Contains(entity.Status))
+        await SyncRemindersAsync(entity.Id, entity.ClosingAtUtc, entity.Status, oldClosing, oldStatus, cancellationToken);
+    }
+
+    public async Task UpdateStatusAsync(Guid id, TenderStatus status, string userId, bool isAdmin, CancellationToken cancellationToken = default)
+    {
+        var entity = await _db.Tenders
+            .SingleOrDefaultAsync(t => t.Id == id, cancellationToken);
+
+        if (entity is null)
         {
-            await _reminderScheduler.ClearPendingAsync(entity.Id, cancellationToken);
+            throw new KeyNotFoundException("Tender not found.");
         }
-        else if (entity.ClosingAtUtc != oldClosing || entity.Status != oldStatus)
+
+        if (!isAdmin && !string.Equals(entity.OwnerUserId, userId, StringComparison.Ordinal))
         {
-            await _reminderScheduler.RegenerateAsync(entity.Id, cancellationToken);
+            throw new UnauthorizedAccessException("Only the owner or an admin can update tender status.");
         }
+
+        if (entity.Status == status)
+        {
+            return;
+        }
+
+        ValidateClosingDate(entity.ClosingAtUtc, status, isAdmin);
+
+        var oldStatus = entity.Status;
+        entity.Status = status;
+        entity.UpdatedAtUtc = DateTimeOffset.UtcNow;
+
+        await _db.SaveChangesAsync(cancellationToken);
+        await SyncRemindersAsync(entity.Id, entity.ClosingAtUtc, entity.Status, entity.ClosingAtUtc, oldStatus, cancellationToken);
     }
 
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
@@ -231,6 +240,47 @@ public sealed class TenderService : ITenderService
         if (!ActiveReminderStatuses.Contains(status))
         {
             return;
+        }
+    }
+
+    private IQueryable<TenderListItemVm> ProjectTenderListItems()
+    {
+        return
+            from tender in _db.Tenders.AsNoTracking()
+            join owner in _db.Users.AsNoTracking() on tender.OwnerUserId equals owner.Id into ownerGroup
+            from owner in ownerGroup.DefaultIfEmpty()
+            select new TenderListItemVm
+            {
+                Id = tender.Id,
+                Name = tender.Name,
+                ReferenceNumber = tender.ReferenceNumber,
+                Client = tender.Client,
+                Category = tender.Category,
+                ClosingAtUtc = tender.ClosingAtUtc,
+                Status = tender.Status,
+                OwnerUserId = tender.OwnerUserId,
+                OwnerDisplayName = owner == null
+                    ? tender.OwnerUserId
+                    : owner.Email ?? owner.UserName ?? owner.Id,
+                UpdatedAtUtc = tender.UpdatedAtUtc,
+            };
+    }
+
+    private async Task SyncRemindersAsync(
+        Guid tenderId,
+        DateTimeOffset newClosingAtUtc,
+        TenderStatus newStatus,
+        DateTimeOffset oldClosingAtUtc,
+        TenderStatus oldStatus,
+        CancellationToken cancellationToken)
+    {
+        if (TerminalStatuses.Contains(newStatus))
+        {
+            await _reminderScheduler.ClearPendingAsync(tenderId, cancellationToken);
+        }
+        else if (newClosingAtUtc != oldClosingAtUtc || newStatus != oldStatus)
+        {
+            await _reminderScheduler.RegenerateAsync(tenderId, cancellationToken);
         }
     }
 }

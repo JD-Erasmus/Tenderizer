@@ -25,23 +25,17 @@ public sealed class TendersController : Controller
     }
 
     [HttpGet("")]
-    public async Task<IActionResult> Index(string? q, CancellationToken cancellationToken)
+    public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
         var tenders = await _tenderService.GetListAsync(cancellationToken);
-        var totalCount = tenders.Count;
 
-        if (!string.IsNullOrWhiteSpace(q))
+        var vm = new TenderListVm
         {
-            var term = q.Trim();
-            tenders = tenders
-                .Where(t => t.Name.Contains(term, StringComparison.OrdinalIgnoreCase)
-                    || (t.Client?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false))
-                .ToList();
-        }
+            Items = tenders,
+            TotalCount = tenders.Count,
+        };
 
-        ViewData["TotalCount"] = totalCount;
-        ViewData["Query"] = q?.Trim();
-        return View(tenders);
+        return View(vm);
     }
 
     [HttpGet("{id:guid}")]
@@ -49,9 +43,15 @@ public sealed class TendersController : Controller
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
         var isAdmin = User.IsInRole("Admin");
-
-        var vm = await _tenderService.GetDetailsAsync(id, userId, isAdmin, cancellationToken);
-        return View(vm);
+        try
+        {
+            var vm = await _tenderService.GetDetailsAsync(id, userId, isAdmin, cancellationToken);
+            return View(vm);
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
     }
 
     [HttpGet("create")]
@@ -90,6 +90,7 @@ public sealed class TendersController : Controller
         try
         {
             var id = await _tenderService.CreateAsync(ToDto(vm), userId, isAdmin, cancellationToken);
+            TempData["StatusMessage"] = "Tender created.";
             return RedirectToAction(nameof(Details), new { id });
         }
         catch (Exception ex)
@@ -105,8 +106,20 @@ public sealed class TendersController : Controller
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
         var isAdmin = User.IsInRole("Admin");
+        TenderDetailsVm details;
+        try
+        {
+            details = await _tenderService.GetDetailsAsync(id, userId, isAdmin, cancellationToken);
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
 
-        var details = await _tenderService.GetDetailsAsync(id, userId, isAdmin, cancellationToken);
+        if (!isAdmin && !string.Equals(details.OwnerUserId, userId, StringComparison.Ordinal))
+        {
+            return Forbid();
+        }
 
         await PopulateOwnerListAsync(isAdmin, cancellationToken);
 
@@ -140,7 +153,16 @@ public sealed class TendersController : Controller
         try
         {
             await _tenderService.UpdateAsync(id, ToDto(vm), userId, isAdmin, cancellationToken);
+            TempData["StatusMessage"] = "Tender updated.";
             return RedirectToAction(nameof(Details), new { id });
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
         }
         catch (Exception ex)
         {
@@ -150,15 +172,49 @@ public sealed class TendersController : Controller
         }
     }
 
+    [HttpPost("{id:guid}/status")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateStatus(Guid id, TenderStatus status, CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+        var isAdmin = User.IsInRole("Admin");
+
+        try
+        {
+            await _tenderService.UpdateStatusAsync(id, status, userId, isAdmin, cancellationToken);
+            TempData["StatusMessage"] = "Tender status saved.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (Exception ex)
+        {
+            TempData["ErrorMessage"] = ex.Message;
+            return RedirectToAction(nameof(Details), new { id });
+        }
+    }
+
     [Authorize(Roles = "Admin")]
     [HttpGet("{id:guid}/delete")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
         var isAdmin = true;
-
-        var vm = await _tenderService.GetDetailsAsync(id, userId, isAdmin, cancellationToken);
-        return View(vm);
+        try
+        {
+            var vm = await _tenderService.GetDetailsAsync(id, userId, isAdmin, cancellationToken);
+            return View(vm);
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
     }
 
     [Authorize(Roles = "Admin")]
@@ -167,6 +223,7 @@ public sealed class TendersController : Controller
     public async Task<IActionResult> DeleteConfirmed(Guid id, CancellationToken cancellationToken)
     {
         await _tenderService.DeleteAsync(id, cancellationToken);
+        TempData["StatusMessage"] = "Tender deleted.";
         return RedirectToAction(nameof(Index));
     }
 

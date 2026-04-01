@@ -33,10 +33,9 @@
         .OrderBy(t => t.ClosingAtUtc)
         .ToList();
 
-    // For V1 we don't have UpdatedAtUtc on list items; history is approximated by terminal status only.
     var history = Model
         .Where(t => IsTerminal(t.Status))
-        .OrderByDescending(t => t.ClosingAtUtc)
+        .OrderByDescending(t => t.UpdatedAtUtc)
         .ToList();
 
     ViewData["Subtitle"] = $"Urgent {urgent.Count} | This week {thisWeek.Count} | Active {active.Count} | History {history.Count}";

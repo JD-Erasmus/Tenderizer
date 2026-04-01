@@ -1,5 +1,4 @@
 @using Tenderizer.ViewModels
-@using Microsoft.AspNetCore.Html
 @using Microsoft.AspNetCore.Mvc.Rendering
 @model TenderDetailsVm
 
@@ -13,17 +12,20 @@
     editLink.InnerHtml.Append("Edit");
 
     var isAdmin = User.IsInRole("Admin");
+    var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+    var canEdit = isAdmin || string.Equals(userId, Model.OwnerUserId, StringComparison.Ordinal);
 
-    if (!isAdmin)
+    if (canEdit && !isAdmin)
     {
         ViewData["HeaderActions"] = editLink;
     }
-    else
+    else if (isAdmin)
     {
         var deleteForm = new TagBuilder("form");
         deleteForm.Attributes["method"] = "post";
         deleteForm.Attributes["action"] = Url.Action("DeleteConfirmed", new { id = Model.Id })!;
         deleteForm.AddCssClass("d-inline");
+        deleteForm.InnerHtml.AppendHtml(Html.AntiForgeryToken());
 
         var deleteButton = new TagBuilder("button");
         deleteButton.Attributes["type"] = "button";
@@ -39,6 +41,23 @@
 }
 
 <partial name="_PageHeader" />
+
+@if (canEdit)
+{
+    <div class="card mb-3">
+        <div class="card-body">
+            <form method="post" asp-action="UpdateStatus" asp-route-id="@Model.Id" class="d-flex align-items-end gap-2">
+                @Html.AntiForgeryToken()
+                <div class="flex-grow-1">
+                    <label asp-for="Status" class="form-label"></label>
+                    <select asp-for="Status" class="form-select" asp-items="Html.GetEnumSelectList<TenderStatus>()"></select>
+                    <div class="form-text">Update the tender state without opening the full edit form.</div>
+                </div>
+                <button type="submit" class="btn btn-outline-secondary">Save Status</button>
+            </form>
+        </div>
+    </div>
+}
 
 <div class="card">
     <div class="card-body">
@@ -59,7 +78,7 @@
             <dd class="col-sm-9">@Model.ClosingAtUtc.ToString("yyyy-MM-dd HH:mm") UTC</dd>
 
             <dt class="col-sm-3">Owner</dt>
-            <dd class="col-sm-9">@Model.OwnerUserId</dd>
+            <dd class="col-sm-9">@Model.OwnerDisplayName</dd>
 
             <dt class="col-sm-3">Created (UTC)</dt>
             <dd class="col-sm-9">@Model.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm") UTC</dd>

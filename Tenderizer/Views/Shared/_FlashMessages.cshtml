@@ -1,0 +1,14 @@
+@{
+    var statusMessage = TempData["StatusMessage"] as string;
+    var errorMessage = TempData["ErrorMessage"] as string;
+}
+
+@if (!string.IsNullOrWhiteSpace(statusMessage))
+{
+    <div class="alert alert-success mb-3" role="alert">@statusMessage</div>
+}
+
+@if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="alert alert-danger mb-3" role="alert">@errorMessage</div>
+}

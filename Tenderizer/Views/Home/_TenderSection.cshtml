@@ -1,3 +1,4 @@
+@using Tenderizer.ViewModels
 @using Tenderizer.Views.Home
 @model TenderSectionVm
 
@@ -8,39 +9,27 @@
     </div>
 
     <div class="card-body p-0">
-        @if (Model.Items.Count == 0)
-        {
-            <div class="p-3 text-muted small">No items.</div>
+        @{
+            var tableId = Model.Title
+                .ToLowerInvariant()
+                .Replace(" ", "-")
+                .Replace("(", string.Empty)
+                .Replace(")", string.Empty);
+            var tableModel = new TenderTableVm
+            {
+                TableId = $"{tableId}-table",
+                Items = Model.Items,
+                EmptyMessage = "No items.",
+                EnableSearch = false,
+                EnablePaging = false,
+                EnableInfo = false,
+                EnableLengthChange = false,
+                PageLength = 5,
+                DefaultOrderColumn = Model.Title == "History" ? "updatedAt" : "closingAtUtc",
+                DefaultOrderDirection = Model.Title == "History" ? "desc" : "asc",
+                SearchPlaceholder = "Search tenders",
+            };
         }
-        else
-        {
-            <div class="table-responsive">
-                <table class="table table-striped mb-0">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Client</th>
-                            <th>Status</th>
-                            <th>Closing (UTC)</th>
-                            <th class="text-end">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var t in Model.Items)
-                        {
-                            <tr>
-                                <td>@t.Name</td>
-                                <td>@t.Client</td>
-                                <td><partial name="_TenderStatusBadge" model="t.Status" /></td>
-                                <td>@t.ClosingAtUtc.ToString("yyyy-MM-dd HH:mm") UTC</td>
-                                <td class="text-end">
-                                    <a class="btn btn-sm btn-outline-primary" asp-controller="Tenders" asp-action="Details" asp-route-id="@t.Id">View</a>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        }
+        <partial name="_TenderTable" model="tableModel" />
     </div>
 </div>
