@@ -34,4 +34,8 @@ public class Tender
 
     public ICollection<TenderReminder> Reminders { get; set; } = new List<TenderReminder>();
     public ICollection<TenderDocument> Documents { get; set; } = new List<TenderDocument>();
+    // Checklist workflow
+    public DateTimeOffset? ChecklistGeneratedAt { get; set; }
+    public ICollection<TenderAssignment> Assignments { get; set; } = new List<TenderAssignment>();
+    public ICollection<ChecklistItem> ChecklistItems { get; set; } = new List<ChecklistItem>();
 }

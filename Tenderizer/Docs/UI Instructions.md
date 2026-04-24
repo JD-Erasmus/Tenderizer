@@ -161,6 +161,15 @@ Rules:
 
 ---
 
+## JavaScript
+
+* Keep JavaScript to the minimum needed for the feature.
+* Prefer no JavaScript when Bootstrap and server-rendered forms are sufficient.
+* When JavaScript is required, place it in a feature-based or model-based file.
+* Avoid inline scripts in Razor views unless there is no practical alternative.
+
+---
+
 ## Forms
 
 ### Layout

@@ -8,6 +8,8 @@ public sealed class TenderDocumentsIndexVm
 {
     public Guid TenderId { get; set; }
     public string TenderName { get; set; } = string.Empty;
+    public bool CanViewChecklist { get; set; }
+    public IReadOnlyList<ChecklistItemVm> ChecklistItems { get; set; } = Array.Empty<ChecklistItemVm>();
     public IReadOnlyList<TenderDocumentListItemVm> Documents { get; set; } = Array.Empty<TenderDocumentListItemVm>();
     public IReadOnlyList<LibraryDocumentOptionVm> LibraryDocumentOptions { get; set; } = Array.Empty<LibraryDocumentOptionVm>();
     public TenderDocumentUploadVm Upload { get; set; } = new();
@@ -16,6 +18,9 @@ public sealed class TenderDocumentsIndexVm
 
 public sealed class TenderDocumentUploadVm
 {
+    [Display(Name = "Checklist item")]
+    public int? ChecklistItemId { get; set; }
+
     [Required]
     public TenderDocumentCategory Category { get; set; } = TenderDocumentCategory.Other;
 

@@ -18,6 +18,8 @@ namespace Tenderizer.Data
         public DbSet<LibraryDocumentVersion> LibraryDocumentVersions => Set<LibraryDocumentVersion>();
         public DbSet<TenderDocument> TenderDocuments => Set<TenderDocument>();
         public DbSet<TenderDocumentCvMetadata> TenderDocumentCvMetadata => Set<TenderDocumentCvMetadata>();
+        public DbSet<ChecklistItem> ChecklistItems => Set<ChecklistItem>();
+        public DbSet<TenderAssignment> TenderAssignments => Set<TenderAssignment>();
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -60,6 +62,35 @@ namespace Tenderizer.Data
 
                 entity.HasMany(x => x.Documents)
                     .WithOne(x => x.Tender)
+                    .HasForeignKey(x => x.TenderId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasMany(x => x.Assignments)
+                    .WithOne(x => x.Tender)
+                    .HasForeignKey(x => x.TenderId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            builder.Entity<TenderAssignment>(entity =>
+            {
+                entity.HasKey(x => new { x.TenderId, x.UserId });
+                entity.Property(x => x.AssignedAt).IsRequired();
+            });
+
+            builder.Entity<ChecklistItem>(entity =>
+            {
+                entity.HasKey(x => x.Id);
+
+                entity.Property(x => x.Title).HasMaxLength(200).IsRequired();
+                entity.Property(x => x.Description).HasMaxLength(1000);
+                entity.Property(x => x.UploadedTenderDocumentId);
+
+                entity.HasIndex(x => x.TenderId);
+                entity.HasIndex(x => x.IsCompleted);
+                entity.HasIndex(x => x.LockedByUserId);
+
+                entity.HasOne(x => x.Tender)
+                    .WithMany(x => x.ChecklistItems)
                     .HasForeignKey(x => x.TenderId)
                     .OnDelete(DeleteBehavior.Cascade);
             });

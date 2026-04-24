@@ -5,12 +5,25 @@
 @{
     ViewData["Title"] = $"{Model.TenderName} Documents";
     ViewData["Subtitle"] = "Attach tender-specific files or pin a specific reusable library document version.";
+    var tenderIdD = Model.TenderId.ToString("D");
 
     var backLink = new TagBuilder("a");
     backLink.AddCssClass("btn btn-outline-secondary");
     backLink.Attributes["href"] = Url.Action("Details", "Tenders", new { id = Model.TenderId })!;
     backLink.InnerHtml.Append("Back To Tender");
     ViewData["HeaderActions"] = backLink;
+}
+
+@section Scripts {
+    <script src="~/js/tender-workflow.js" asp-append-version="true"></script>
+}
+
+@section Scripts {
+    <script src="~/js/tender-workflow.js" asp-append-version="true"></script>
+}
+
+@section Scripts {
+    <script src="~/js/tender-workflow.js" asp-append-version="true"></script>
 }
 
 <partial name="_PageHeader" />
@@ -23,6 +36,26 @@
 
                 <form method="post" asp-action="Upload" asp-route-tenderId="@Model.TenderId" enctype="multipart/form-data">
                     @Html.AntiForgeryToken()
+
+                    @if (Model.CanViewChecklist)
+                    {
+                        <div class="mb-3">
+                            <label asp-for="Upload.ChecklistItemId" class="form-label"></label>
+                            <select asp-for="Upload.ChecklistItemId"
+                                    class="form-select"
+                                    data-checklist-lock-select="true"
+                                    data-checklist-lock-url-template="/tenders/@tenderIdD/checklist/items/__ID__/lock"
+                                    data-checklist-unlock-url-template="/tenders/@tenderIdD/checklist/items/__ID__/unlock"
+                                    data-checklist-current-lock-item="">
+                                <option value="">No checklist item</option>
+                                @foreach (var item in Model.ChecklistItems)
+                                {
+                                    <option value="@item.Id">@item.Title @(item.Required ? "(Required)" : string.Empty)</option>
+                                }
+                            </select>
+                            <div class="form-text" id="checklist-lock-state">Select an item to acquire its lock before uploading.</div>
+                        </div>
+                    }
 
                     <div class="mb-3">
                         <label asp-for="Upload.Category" class="form-label"></label>
@@ -81,6 +114,10 @@
                             {
                                 <option value="@option.VersionId">@option.Label</option>
                             }
+
+@section Scripts {
+    <script src="~/js/tender-workflow.js" asp-append-version="true"></script>
+}
                         </select>
                     </div>
 

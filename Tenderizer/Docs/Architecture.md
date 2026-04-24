@@ -150,4 +150,18 @@ Reminder flow:
 Operational note
 ----------------
 
+Tender workflow
+---------------
+
+A new "Tender workflow" feature coordinates tender status transitions, team assignments, checklist generation, and collaborative document uploads. See `Docs/TenderWorkflow.md` for full design and migration notes.
+
+- Statuses introduced: `Draft`, `Identified`, `InProgress`, `Completed`. `Draft` is the initial state; `Identified` indicates assigned team members and triggers checklist generation; `InProgress` enables collaborative uploads against checklist items; `Completed` marks the checklist finished and the tender ready for final review.
+- Assignments: tenders support assigning one or more users (many-to-many) who may upload documents and complete checklist items.
+- Checklist: persisted `ChecklistItem` entities are generated when a tender is identified. Uploads can satisfy checklist items and are tracked on the checklist.
+
+This feature touches the application layer (`TenderService`, `TenderDocumentService`), the data layer (new `ChecklistItem` and `TenderAssignment` entities and migrations), and the presentation layer (tender details, checklist partials, and upload flows).
+
+Operational note
+----------------
+
 Reminder dispatch currently assumes a single running web instance. There is no distributed lock or lease around due-reminder processing, so horizontal scaling can produce duplicate sends.

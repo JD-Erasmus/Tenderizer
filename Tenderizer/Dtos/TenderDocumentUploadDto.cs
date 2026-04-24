@@ -5,6 +5,8 @@ namespace Tenderizer.Dtos;
 
 public sealed class TenderDocumentUploadDto
 {
+    public int? ChecklistItemId { get; set; }
+
     public TenderDocumentCategory Category { get; set; }
     public string? DisplayName { get; set; }
     public IFormFile File { get; set; } = null!;

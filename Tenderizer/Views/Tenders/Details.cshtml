@@ -65,6 +65,8 @@
     </div>
 }
 
+<partial name="_Checklist" model="Model" />
+
 <div class="card">
     <div class="card-body">
         <dl class="row mb-0">
@@ -95,17 +97,6 @@
     </div>
 </div>
 
-@if (isAdmin)
-{
-    @section Scripts {
-        <partial name="_SweetAlertConfirmPartial" />
-        <script>
-            document.addEventListener('click', function (e) {
-                const btn = e.target.closest('[data-delete-button]');
-                if (!btn) return;
-                const form = btn.closest('form');
-                window.Tenderizer.confirmDelete(form);
-            });
-        </script>
-    }
+@section Scripts {
+    <script src="~/js/tender-workflow.js" asp-append-version="true"></script>
 }

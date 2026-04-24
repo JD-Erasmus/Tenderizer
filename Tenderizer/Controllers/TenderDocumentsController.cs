@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Tenderizer.Dtos;
+using Tenderizer.Models;
 using Tenderizer.Services.Interfaces;
 using Tenderizer.ViewModels;
 
@@ -12,18 +13,21 @@ namespace Tenderizer.Controllers;
 public sealed class TenderDocumentsController : Controller
 {
     private readonly ITenderDocumentService _tenderDocumentService;
+    private readonly IChecklistService _checklistService;
     private readonly IPrivateFileStore _privateFileStore;
 
     public TenderDocumentsController(
         ITenderDocumentService tenderDocumentService,
+        IChecklistService checklistService,
         IPrivateFileStore privateFileStore)
     {
         _tenderDocumentService = tenderDocumentService;
+        _checklistService = checklistService;
         _privateFileStore = privateFileStore;
     }
 
     [HttpGet("")]
-    public async Task<IActionResult> Index(Guid tenderId, CancellationToken cancellationToken)
+    public async Task<IActionResult> Index(Guid tenderId, int? checklistItemId, CancellationToken cancellationToken)
     {
         try
         {
@@ -32,6 +36,21 @@ public sealed class TenderDocumentsController : Controller
                 GetUserId(),
                 User.IsInRole("Admin"),
                 cancellationToken);
+
+            vm.Upload.ChecklistItemId = checklistItemId;
+
+            try
+            {
+                vm.ChecklistItems = (await _checklistService.GetChecklistAsync(tenderId, GetUserId()))
+                    .Select(item => MapChecklistItem(item))
+                    .ToList();
+                vm.CanViewChecklist = true;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                vm.ChecklistItems = Array.Empty<ChecklistItemVm>();
+                vm.CanViewChecklist = false;
+            }
 
             return View(vm);
         }
@@ -59,6 +78,7 @@ public sealed class TenderDocumentsController : Controller
         {
             await _tenderDocumentService.UploadAsync(tenderId, new TenderDocumentUploadDto
             {
+                ChecklistItemId = vm.ChecklistItemId,
                 Category = vm.Category,
                 DisplayName = vm.DisplayName,
                 File = vm.File,
@@ -157,5 +177,24 @@ public sealed class TenderDocumentsController : Controller
     private string GetUserId()
     {
         return User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+    }
+
+    private static ChecklistItemVm MapChecklistItem(ChecklistItem item)
+    {
+        return new ChecklistItemVm
+        {
+            Id = item.Id,
+            TenderId = item.TenderId,
+            Title = item.Title,
+            Description = item.Description,
+            Required = item.Required,
+            IsCompleted = item.IsCompleted,
+            UploadedTenderDocumentId = item.UploadedTenderDocumentId,
+            LockedByUserId = item.LockedByUserId,
+            LockedAtUtc = item.LockedAtUtc,
+            LockExpiresAtUtc = item.LockExpiresAtUtc,
+            CreatedAtUtc = item.CreatedAtUtc,
+            UpdatedAtUtc = item.UpdatedAtUtc,
+        };
     }
 }

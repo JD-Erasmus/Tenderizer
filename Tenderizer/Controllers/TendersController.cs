@@ -15,15 +15,18 @@ public sealed class TendersController : Controller
 {
     private readonly ITenderService _tenderService;
     private readonly ITenderDocumentService _tenderDocumentService;
+    private readonly IChecklistService _checklistService;
     private readonly IUserLookupService _userLookupService;
 
     public TendersController(
         ITenderService tenderService,
         ITenderDocumentService tenderDocumentService,
+        IChecklistService checklistService,
         IUserLookupService userLookupService)
     {
         _tenderService = tenderService;
         _tenderDocumentService = tenderDocumentService;
+        _checklistService = checklistService;
         _userLookupService = userLookupService;
     }
 
@@ -49,6 +52,17 @@ public sealed class TendersController : Controller
         try
         {
             var vm = await _tenderService.GetDetailsAsync(id, userId, isAdmin, cancellationToken);
+            try
+            {
+                vm.ChecklistItems = (await _checklistService.GetChecklistAsync(id, userId)).Select(MapChecklistItem).ToList();
+                vm.CanViewChecklist = true;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                vm.ChecklistItems = Array.Empty<ChecklistItemVm>();
+                vm.CanViewChecklist = false;
+            }
+
             return View(vm);
         }
         catch (KeyNotFoundException)
@@ -57,11 +71,32 @@ public sealed class TendersController : Controller
         }
     }
 
+    [HttpGet("{id:guid}/checklist")]
+    public async Task<IActionResult> Checklist(Guid id, CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+
+        try
+        {
+            var items = await _checklistService.GetChecklistAsync(id, userId);
+            return Ok(items.Select(MapChecklistItem));
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+    }
+
     [HttpGet("create")]
     public async Task<IActionResult> Create(CancellationToken cancellationToken)
     {
         var isAdmin = User.IsInRole("Admin");
         await PopulateOwnerListAsync(isAdmin, cancellationToken);
+        await PopulateAssignedUserListAsync(cancellationToken);
 
         var vm = new TenderUpsertVm
         {
@@ -87,6 +122,7 @@ public sealed class TendersController : Controller
         if (!ModelState.IsValid)
         {
             await PopulateOwnerListAsync(isAdmin, cancellationToken);
+            await PopulateAssignedUserListAsync(cancellationToken);
             return View(vm);
         }
 
@@ -124,7 +160,160 @@ public sealed class TendersController : Controller
         {
             ModelState.AddModelError(string.Empty, ex.Message);
             await PopulateOwnerListAsync(isAdmin, cancellationToken);
+            await PopulateAssignedUserListAsync(cancellationToken);
             return View(vm);
+        }
+    }
+
+    [HttpPost("{id:guid}/checklist/items")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddChecklistItem(Guid id, [FromForm] CreateChecklistItemDto dto)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+
+        try
+        {
+            var item = await _checklistService.AddItemAsync(id, dto, userId);
+            return Ok(MapChecklistItem(item));
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(ex.Message);
+        }
+    }
+
+    [HttpPost("{id:guid}/checklist/items/{checklistItemId:int}")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateChecklistItem(Guid id, int checklistItemId, [FromForm] UpdateChecklistItemDto dto)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+
+        try
+        {
+            await _checklistService.UpdateItemAsync(checklistItemId, dto, userId);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(ex.Message);
+        }
+    }
+
+    [HttpPost("{id:guid}/checklist/items/{checklistItemId:int}/remove")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RemoveChecklistItem(Guid id, int checklistItemId)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+
+        try
+        {
+            await _checklistService.RemoveItemAsync(checklistItemId, userId);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+    }
+
+    [HttpPost("{id:guid}/checklist/items/{checklistItemId:int}/lock")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AcquireChecklistLock(Guid id, int checklistItemId)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+
+        try
+        {
+            var locked = await _checklistService.AcquireLockAsync(checklistItemId, userId);
+            return locked ? Ok() : Conflict();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(ex.Message);
+        }
+    }
+
+    [HttpPost("{id:guid}/checklist/items/{checklistItemId:int}/unlock")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ReleaseChecklistLock(Guid id, int checklistItemId)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+
+        try
+        {
+            var released = await _checklistService.ReleaseLockAsync(checklistItemId, userId);
+            return released ? Ok() : Conflict();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+    }
+
+    [HttpPost("{id:guid}/checklist/items/{checklistItemId:int}/complete")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> MarkChecklistItemCompleted(Guid id, int checklistItemId, [FromForm] Guid? tenderDocumentId)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+
+        try
+        {
+            await _checklistService.MarkCompletedAsync(checklistItemId, tenderDocumentId, userId);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(ex.Message);
         }
     }
 
@@ -149,6 +338,7 @@ public sealed class TendersController : Controller
         }
 
         await PopulateOwnerListAsync(isAdmin, cancellationToken);
+        await PopulateAssignedUserListAsync(cancellationToken);
 
         var vm = new TenderUpsertVm
         {
@@ -159,6 +349,7 @@ public sealed class TendersController : Controller
             ClosingAtUtc = details.ClosingAtUtc,
             Status = details.Status,
             OwnerUserId = details.OwnerUserId,
+            AssignedUserIds = details.AssignedUserIds.ToList(),
         };
 
         return View(vm);
@@ -174,6 +365,7 @@ public sealed class TendersController : Controller
         if (!ModelState.IsValid)
         {
             await PopulateOwnerListAsync(isAdmin, cancellationToken);
+            await PopulateAssignedUserListAsync(cancellationToken);
             return View(vm);
         }
 
@@ -195,6 +387,7 @@ public sealed class TendersController : Controller
         {
             ModelState.AddModelError(string.Empty, ex.Message);
             await PopulateOwnerListAsync(isAdmin, cancellationToken);
+            await PopulateAssignedUserListAsync(cancellationToken);
             return View(vm);
         }
     }
@@ -265,6 +458,11 @@ public sealed class TendersController : Controller
         ViewBag.OwnerUsers = await _userLookupService.GetUserSelectListAsync(cancellationToken);
     }
 
+    private async Task PopulateAssignedUserListAsync(CancellationToken cancellationToken)
+    {
+        ViewBag.AssignedUsers = await _userLookupService.GetUserSelectListAsync(cancellationToken);
+    }
+
     private static TenderUpsertDto ToDto(TenderUpsertVm vm)
     {
         return new TenderUpsertDto
@@ -276,6 +474,26 @@ public sealed class TendersController : Controller
             ClosingAtUtc = vm.ClosingAtUtc,
             Status = vm.Status,
             OwnerUserId = vm.OwnerUserId ?? string.Empty,
+            AssignedUserIds = vm.AssignedUserIds ?? [],
+        };
+    }
+
+    private static ChecklistItemVm MapChecklistItem(ChecklistItem item)
+    {
+        return new ChecklistItemVm
+        {
+            Id = item.Id,
+            TenderId = item.TenderId,
+            Title = item.Title,
+            Description = item.Description,
+            Required = item.Required,
+            IsCompleted = item.IsCompleted,
+            UploadedTenderDocumentId = item.UploadedTenderDocumentId,
+            LockedByUserId = item.LockedByUserId,
+            LockedAtUtc = item.LockedAtUtc,
+            LockExpiresAtUtc = item.LockExpiresAtUtc,
+            CreatedAtUtc = item.CreatedAtUtc,
+            UpdatedAtUtc = item.UpdatedAtUtc,
         };
     }
 }

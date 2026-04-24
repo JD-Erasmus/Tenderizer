@@ -11,4 +11,5 @@ public sealed class TenderUpsertDto
     public DateTimeOffset ClosingAtUtc { get; set; }
     public TenderStatus Status { get; set; }
     public string OwnerUserId { get; set; } = string.Empty;
+    public List<string> AssignedUserIds { get; set; } = [];
 }

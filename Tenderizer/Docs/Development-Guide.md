@@ -40,6 +40,7 @@ Where to make changes
 - Put reminder scheduling rules in `Services/Implementations/ReminderScheduler.cs`
 - Put reminder dispatch logic in `Workers/TenderReminderWorker.cs`
 - Keep controllers thin and use DTOs and view models for MVC input and output
+- Keep JavaScript minimal; when it is needed, place it in a feature-based or model-based file rather than inline in views
 
 Current implementation constraints
 ----------------------------------

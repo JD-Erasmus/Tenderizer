@@ -10,6 +10,8 @@ namespace Tenderizer.Services.Implementations;
 public sealed class TenderService : ITenderService
 {
     private readonly ApplicationDbContext _db;
+    private readonly IChecklistService _checklistService;
+    private readonly INotificationService _notificationService;
     private readonly IReminderScheduler _reminderScheduler;
 
     private static readonly TenderStatus[] ActiveReminderStatuses =
@@ -27,9 +29,11 @@ public sealed class TenderService : ITenderService
         TenderStatus.Cancelled,
     ];
 
-    public TenderService(ApplicationDbContext db, IReminderScheduler reminderScheduler)
+    public TenderService(ApplicationDbContext db, IChecklistService checklistService, INotificationService notificationService, IReminderScheduler reminderScheduler)
     {
         _db = db;
+        _checklistService = checklistService;
+        _notificationService = notificationService;
         _reminderScheduler = reminderScheduler;
     }
 
@@ -62,7 +66,7 @@ public sealed class TenderService : ITenderService
     public async Task<TenderDetailsVm> GetDetailsAsync(Guid id, string userId, bool isAdmin, CancellationToken cancellationToken = default)
     {
         var vm = await (
-            from tender in _db.Tenders.AsNoTracking()
+            from tender in _db.Tenders.AsNoTracking().Include(t => t.Assignments)
             join owner in _db.Users.AsNoTracking() on tender.OwnerUserId equals owner.Id into ownerGroup
             from owner in ownerGroup.DefaultIfEmpty()
             where tender.Id == id
@@ -79,6 +83,7 @@ public sealed class TenderService : ITenderService
                 OwnerDisplayName = owner == null
                     ? tender.OwnerUserId
                     : owner.Email ?? owner.UserName ?? owner.Id,
+                AssignedUserIds = tender.Assignments.Select(a => a.UserId).ToList(),
                 CreatedAtUtc = tender.CreatedAtUtc,
                 UpdatedAtUtc = tender.UpdatedAtUtc,
             })
@@ -121,8 +126,22 @@ public sealed class TenderService : ITenderService
         _db.Tenders.Add(entity);
         await _db.SaveChangesAsync(cancellationToken);
 
+        var assignedUserIds = await SyncAssignmentsAsync(entity.Id, dto.AssignedUserIds, cancellationToken);
+
+        foreach (var assignedUserId in assignedUserIds)
+        {
+            await _notificationService.NotifyTenderAssignedAsync(entity.Id, entity.Name, assignedUserId, cancellationToken);
+        }
+
+        await GenerateChecklistIfNeededAsync(entity, previousStatus: null);
+
         // Keep reminders consistent with business rules.
         await _reminderScheduler.RegenerateAsync(entity.Id, cancellationToken);
+
+        if (entity.Status != TenderStatus.Draft)
+        {
+            await _notificationService.NotifyTenderStatusChangedAsync(entity.Id, entity.Name, TenderStatus.Draft, entity.Status, cancellationToken);
+        }
 
         return entity.Id;
     }
@@ -142,6 +161,7 @@ public sealed class TenderService : ITenderService
             throw new UnauthorizedAccessException("Only the owner or an admin can edit this tender.");
         }
 
+        var oldOwnerUserId = entity.OwnerUserId;
         var oldClosing = entity.ClosingAtUtc;
         var oldStatus = entity.Status;
 
@@ -164,11 +184,30 @@ public sealed class TenderService : ITenderService
 
         await _db.SaveChangesAsync(cancellationToken);
 
+        var assignedUserIds = await SyncAssignmentsAsync(entity.Id, dto.AssignedUserIds, cancellationToken);
+
+        foreach (var assignedUserId in assignedUserIds)
+        {
+            await _notificationService.NotifyTenderAssignedAsync(entity.Id, entity.Name, assignedUserId, cancellationToken);
+        }
+
+        await GenerateChecklistIfNeededAsync(entity, oldStatus);
+
         // Enforce reminder business rules:
         // - terminal => clear pending
         // - closing changed => regenerate (includes status rules)
         // - status changed => regenerate (includes terminal clear)
         await SyncRemindersAsync(entity.Id, entity.ClosingAtUtc, entity.Status, oldClosing, oldStatus, cancellationToken);
+
+        if (!string.Equals(oldOwnerUserId, entity.OwnerUserId, StringComparison.Ordinal))
+        {
+            await _notificationService.NotifyTenderAssignedAsync(entity.Id, entity.Name, entity.OwnerUserId, cancellationToken);
+        }
+
+        if (entity.Status != oldStatus)
+        {
+            await _notificationService.NotifyTenderStatusChangedAsync(entity.Id, entity.Name, oldStatus, entity.Status, cancellationToken);
+        }
     }
 
     public async Task UpdateStatusAsync(Guid id, TenderStatus status, string userId, bool isAdmin, CancellationToken cancellationToken = default)
@@ -198,7 +237,10 @@ public sealed class TenderService : ITenderService
         entity.UpdatedAtUtc = DateTimeOffset.UtcNow;
 
         await _db.SaveChangesAsync(cancellationToken);
+        await GenerateChecklistIfNeededAsync(entity, oldStatus);
         await SyncRemindersAsync(entity.Id, entity.ClosingAtUtc, entity.Status, entity.ClosingAtUtc, oldStatus, cancellationToken);
+
+        await _notificationService.NotifyTenderStatusChangedAsync(entity.Id, entity.Name, oldStatus, entity.Status, cancellationToken);
     }
 
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
@@ -282,5 +324,64 @@ public sealed class TenderService : ITenderService
         {
             await _reminderScheduler.RegenerateAsync(tenderId, cancellationToken);
         }
+    }
+
+    private async Task GenerateChecklistIfNeededAsync(Tender tender, TenderStatus? previousStatus)
+    {
+        if (tender.ChecklistGeneratedAt.HasValue)
+        {
+            return;
+        }
+
+        var shouldGenerate = previousStatus is null
+            ? tender.Status == TenderStatus.Identified
+            : previousStatus == TenderStatus.Draft && tender.Status == TenderStatus.Identified;
+
+        if (!shouldGenerate)
+        {
+            return;
+        }
+
+        await _checklistService.GenerateChecklistAsync(tender.Id);
+    }
+
+    private async Task<IReadOnlyList<string>> SyncAssignmentsAsync(Guid tenderId, IEnumerable<string> assignedUserIds, CancellationToken cancellationToken)
+    {
+        var normalizedIds = assignedUserIds
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(id => id.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var validIds = await _db.Users
+            .AsNoTracking()
+            .Where(u => normalizedIds.Contains(u.Id))
+            .Select(u => u.Id)
+            .ToListAsync(cancellationToken);
+
+        if (validIds.Count != normalizedIds.Count)
+        {
+            throw new ArgumentException("One or more assigned users are invalid.");
+        }
+
+        var existingAssignments = await _db.TenderAssignments
+            .Where(a => a.TenderId == tenderId)
+            .ToListAsync(cancellationToken);
+
+        _db.TenderAssignments.RemoveRange(existingAssignments);
+
+        var utcNow = DateTimeOffset.UtcNow;
+        foreach (var userId in validIds)
+        {
+            _db.TenderAssignments.Add(new TenderAssignment
+            {
+                TenderId = tenderId,
+                UserId = userId,
+                AssignedAt = utcNow,
+            });
+        }
+
+        await _db.SaveChangesAsync(cancellationToken);
+        return validIds;
     }
 }

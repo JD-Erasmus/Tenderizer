@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Tenderizer.Models;
 
 namespace Tenderizer.ViewModels;
@@ -27,6 +28,11 @@ public sealed class TenderUpsertVm
 
     [Display(Name = "Owner")]
     public string? OwnerUserId { get; set; }
+
+    [Display(Name = "Assigned users")]
+    public List<string> AssignedUserIds { get; set; } = [];
+
+    public IReadOnlyList<SelectListItem> AssignedUserOptions { get; set; } = Array.Empty<SelectListItem>();
 
     [Display(Name = "Tender / RFP document")]
     public IFormFile? TenderRequestDocument { get; set; }

@@ -63,3 +63,13 @@
         <span asp-validation-for="OwnerUserId" class="text-danger"></span>
     </div>
 }
+
+@{
+    var assignedUsers = ViewBag.AssignedUsers as IReadOnlyList<SelectListItem> ?? Array.Empty<SelectListItem>();
+}
+
+<div class="mb-3">
+    <label asp-for="AssignedUserIds" class="form-label"></label>
+    <select asp-for="AssignedUserIds" class="form-select" asp-items="assignedUsers" multiple size="6"></select>
+    <div class="form-text">Hold Ctrl or Cmd to select multiple assigned users.</div>
+</div>

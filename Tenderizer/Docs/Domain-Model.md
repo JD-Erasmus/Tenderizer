@@ -77,6 +77,14 @@ Relationships and indexes
 - Indexes on `Tender.ClosingAtUtc`, `Tender.Status`, and `Tender.OwnerUserId`
 - Indexes on reminder state and schedule fields for worker lookups
 
+Checklist concurrency and locking
+--------------------------------
+
+- `ChecklistItem` entities include lock metadata to support pessimistic locking for document uploads: `LockedByUserId` (string), `LockedAtUtc` (DateTimeOffset?), and `LockExpiresAtUtc` (DateTimeOffset?).
+- The application requires clients to acquire a lock before uploading a document that satisfies a checklist item. Lock acquisition occurs in a short database transaction and fails if an unexpired lock exists.
+- Locks automatically expire after a configurable timeout (e.g., 15 minutes) so abandoned locks are recoverable. The server treats expired locks as released.
+- The UI should obtain and release locks during the upload flow; the server validates the lock owner before accepting an upload and marking the item completed.
+
 Reminder lifecycle
 ------------------
 
@@ -93,6 +101,19 @@ When the worker processes reminders:
 - Success sets `SentAtUtc` and clears `LastError`
 - Failure increments `AttemptCount`, stores `LastError`, and reschedules the reminder for 10 minutes later
 - Attempts stop after 5 failures
+
+Notifications and assignment events
+----------------------------------
+
+- Assigning a user to a tender triggers an email notification to the assigned user.
+- Changing a tender's status triggers email notifications to the tender owner and assigned users for key transitions (`Draft` -> `Identified`, `Identified` -> `InProgress`, `InProgress` -> `Completed`).
+- Notifications should be sent asynchronously and use the existing `IEmailSender` implementation behind a `INotificationService` orchestration layer.
+
+Checklist edit permissions
+-------------------------
+
+- Any user assigned to a tender may add, edit, or remove checklist items while the tender is in `Identified` or `InProgress` statuses. Edits should be audited (who, when) if audit requirements exist.
+- Owners and admins may always edit or remove checklist items regardless of assignment.
 
 DTOs and view models
 --------------------

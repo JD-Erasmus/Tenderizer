@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Tenderizer.Data;
 using Tenderizer.Dtos;
 using Tenderizer.Models;
 using Tenderizer.Services.Implementations;
+using Tenderizer.Services.Interfaces;
 
 namespace TenderizerTest;
 
@@ -15,8 +17,7 @@ public sealed class TenderServiceTests
         await using var _ = db;
         await using var __ = connection;
 
-        var scheduler = new ReminderScheduler(db, TestDbFactory.CreateConfiguration());
-        var service = new TenderService(db, scheduler);
+        var service = CreateService(db);
 
         var userId = "user-1";
         var dto = new TenderUpsertDto
@@ -43,8 +44,7 @@ public sealed class TenderServiceTests
         await using var _ = db;
         await using var __ = connection;
 
-        var scheduler = new ReminderScheduler(db, TestDbFactory.CreateConfiguration());
-        var service = new TenderService(db, scheduler);
+        var service = CreateService(db);
 
         var dto = new TenderUpsertDto
         {
@@ -67,8 +67,7 @@ public sealed class TenderServiceTests
         await using var _ = db;
         await using var __ = connection;
 
-        var scheduler = new ReminderScheduler(db, TestDbFactory.CreateConfiguration());
-        var service = new TenderService(db, scheduler);
+        var service = CreateService(db);
 
         var dto = new TenderUpsertDto
         {
@@ -88,8 +87,7 @@ public sealed class TenderServiceTests
         await using var _ = db;
         await using var __ = connection;
 
-        var scheduler = new ReminderScheduler(db, TestDbFactory.CreateConfiguration());
-        var service = new TenderService(db, scheduler);
+        var service = CreateService(db);
 
         var dto = new TenderUpsertDto
         {
@@ -110,8 +108,7 @@ public sealed class TenderServiceTests
         await using var _ = db;
         await using var __ = connection;
 
-        var scheduler = new ReminderScheduler(db, TestDbFactory.CreateConfiguration());
-        var service = new TenderService(db, scheduler);
+        var service = CreateService(db);
 
         var id = await service.CreateAsync(new TenderUpsertDto
         {
@@ -139,8 +136,7 @@ public sealed class TenderServiceTests
         await using var _ = db;
         await using var __ = connection;
 
-        var scheduler = new ReminderScheduler(db, TestDbFactory.CreateConfiguration());
-        var service = new TenderService(db, scheduler);
+        var service = CreateService(db);
 
         var id = await service.CreateAsync(new TenderUpsertDto
         {
@@ -183,8 +179,7 @@ public sealed class TenderServiceTests
         await using var _ = db;
         await using var __ = connection;
 
-        var scheduler = new ReminderScheduler(db, TestDbFactory.CreateConfiguration());
-        var service = new TenderService(db, scheduler);
+        var service = CreateService(db);
 
         var id = await service.CreateAsync(new TenderUpsertDto
         {
@@ -216,8 +211,7 @@ public sealed class TenderServiceTests
             NormalizedEmail = "OWNER@LOCAL.TEST",
         });
 
-        var scheduler = new ReminderScheduler(db, TestDbFactory.CreateConfiguration());
-        var service = new TenderService(db, scheduler);
+        var service = CreateService(db);
 
         var id = await service.CreateAsync(new TenderUpsertDto
         {
@@ -241,8 +235,7 @@ public sealed class TenderServiceTests
         await using var _ = db;
         await using var __ = connection;
 
-        var scheduler = new ReminderScheduler(db, TestDbFactory.CreateConfiguration());
-        var service = new TenderService(db, scheduler);
+        var service = CreateService(db);
 
         var id = await service.CreateAsync(new TenderUpsertDto
         {
@@ -270,8 +263,7 @@ public sealed class TenderServiceTests
         await using var _ = db;
         await using var __ = connection;
 
-        var scheduler = new ReminderScheduler(db, TestDbFactory.CreateConfiguration());
-        var service = new TenderService(db, scheduler);
+        var service = CreateService(db);
 
         var id = await service.CreateAsync(new TenderUpsertDto
         {
@@ -291,8 +283,7 @@ public sealed class TenderServiceTests
         await using var _ = db;
         await using var __ = connection;
 
-        var scheduler = new ReminderScheduler(db, TestDbFactory.CreateConfiguration());
-        var service = new TenderService(db, scheduler);
+        var service = CreateService(db);
 
         var id = await service.CreateAsync(new TenderUpsertDto
         {
@@ -305,5 +296,28 @@ public sealed class TenderServiceTests
         await service.DeleteAsync(id);
 
         Assert.False(await db.Tenders.AsNoTracking().AnyAsync(t => t.Id == id));
+    }
+
+    private static TenderService CreateService(ApplicationDbContext db)
+    {
+        return new TenderService(db, new NoOpChecklistService(), new NoOpNotificationService(), new ReminderScheduler(db, TestDbFactory.CreateConfiguration()));
+    }
+
+    private sealed class NoOpChecklistService : IChecklistService
+    {
+        public Task GenerateChecklistAsync(Guid tenderId, string? templateName = null) => Task.CompletedTask;
+        public Task<IEnumerable<ChecklistItem>> GetChecklistAsync(Guid tenderId, string userId) => Task.FromResult<IEnumerable<ChecklistItem>>(Array.Empty<ChecklistItem>());
+        public Task<bool> AcquireLockAsync(int checklistItemId, string userId, TimeSpan? timeout = null) => Task.FromResult(false);
+        public Task<bool> ReleaseLockAsync(int checklistItemId, string userId) => Task.FromResult(false);
+        public Task MarkCompletedAsync(int checklistItemId, Guid? tenderDocumentId, string userId) => Task.CompletedTask;
+        public Task<ChecklistItem> AddItemAsync(Guid tenderId, Tenderizer.Dtos.CreateChecklistItemDto dto, string userId) => throw new NotSupportedException();
+        public Task UpdateItemAsync(int checklistItemId, Tenderizer.Dtos.UpdateChecklistItemDto dto, string userId) => Task.CompletedTask;
+        public Task RemoveItemAsync(int checklistItemId, string userId) => Task.CompletedTask;
+    }
+
+    private sealed class NoOpNotificationService : INotificationService
+    {
+        public Task NotifyTenderAssignedAsync(Guid tenderId, string tenderName, string assignedUserId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task NotifyTenderStatusChangedAsync(Guid tenderId, string tenderName, TenderStatus previousStatus, TenderStatus currentStatus, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 }

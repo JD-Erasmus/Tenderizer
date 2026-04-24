@@ -10,11 +10,13 @@ namespace Tenderizer.Services.Implementations;
 public sealed class TenderDocumentService : ITenderDocumentService
 {
     private readonly ApplicationDbContext _db;
+    private readonly IChecklistService _checklistService;
     private readonly IPrivateFileStore _privateFileStore;
 
-    public TenderDocumentService(ApplicationDbContext db, IPrivateFileStore privateFileStore)
+    public TenderDocumentService(ApplicationDbContext db, IChecklistService checklistService, IPrivateFileStore privateFileStore)
     {
         _db = db;
+        _checklistService = checklistService;
         _privateFileStore = privateFileStore;
     }
 
@@ -22,6 +24,7 @@ public sealed class TenderDocumentService : ITenderDocumentService
     {
         var tender = await _db.Tenders
             .AsNoTracking()
+            .Include(x => x.Assignments)
             .SingleOrDefaultAsync(x => x.Id == tenderId, cancellationToken);
 
         if (tender is null)
@@ -68,13 +71,21 @@ public sealed class TenderDocumentService : ITenderDocumentService
     {
         ArgumentNullException.ThrowIfNull(dto);
 
-        var tender = await _db.Tenders.SingleOrDefaultAsync(x => x.Id == tenderId, cancellationToken);
+        var tender = await _db.Tenders
+            .AsNoTracking()
+            .Include(x => x.Assignments)
+            .SingleOrDefaultAsync(x => x.Id == tenderId, cancellationToken);
         if (tender is null)
         {
             throw new KeyNotFoundException("Tender not found.");
         }
 
         EnsureCanManageTender(tender, userId, isAdmin);
+
+        if (dto.ChecklistItemId.HasValue)
+        {
+            await ValidateChecklistLockAsync(tenderId, dto.ChecklistItemId.Value, userId, cancellationToken);
+        }
 
         var utcNow = DateTimeOffset.UtcNow;
         var storedFileId = Guid.NewGuid();
@@ -104,6 +115,11 @@ public sealed class TenderDocumentService : ITenderDocumentService
         _db.TenderDocuments.Add(document);
         await _db.SaveChangesAsync(cancellationToken);
 
+        if (dto.ChecklistItemId.HasValue)
+        {
+            await _checklistService.MarkCompletedAsync(dto.ChecklistItemId.Value, documentId, userId);
+        }
+
         return documentId;
     }
 
@@ -111,7 +127,10 @@ public sealed class TenderDocumentService : ITenderDocumentService
     {
         ArgumentNullException.ThrowIfNull(dto);
 
-        var tender = await _db.Tenders.SingleOrDefaultAsync(x => x.Id == tenderId, cancellationToken);
+        var tender = await _db.Tenders
+            .AsNoTracking()
+            .Include(x => x.Assignments)
+            .SingleOrDefaultAsync(x => x.Id == tenderId, cancellationToken);
         if (tender is null)
         {
             throw new KeyNotFoundException("Tender not found.");
@@ -159,6 +178,7 @@ public sealed class TenderDocumentService : ITenderDocumentService
             .AsNoTracking()
             .Include(x => x.StoredFile)
             .Include(x => x.Tender)
+            .ThenInclude(x => x!.Assignments)
             .SingleOrDefaultAsync(x => x.TenderId == tenderId && x.Id == tenderDocumentId, cancellationToken);
 
         if (document is null)
@@ -182,9 +202,42 @@ public sealed class TenderDocumentService : ITenderDocumentService
             return;
         }
 
-        if (!string.Equals(tender.OwnerUserId, userId, StringComparison.Ordinal))
+        if (string.Equals(tender.OwnerUserId, userId, StringComparison.Ordinal))
         {
-            throw new UnauthorizedAccessException("Only the owner or an admin can manage tender documents.");
+            return;
+        }
+
+        if ((tender.Status is TenderStatus.Identified or TenderStatus.InProgress) &&
+            tender.Assignments.Any(x => string.Equals(x.UserId, userId, StringComparison.Ordinal)))
+        {
+            return;
+        }
+
+        throw new UnauthorizedAccessException("Only the owner, an assigned user, or an admin can manage tender documents.");
+    }
+
+    private async Task ValidateChecklistLockAsync(Guid tenderId, int checklistItemId, string userId, CancellationToken cancellationToken)
+    {
+        var checklistItem = await _db.ChecklistItems
+            .AsNoTracking()
+            .SingleOrDefaultAsync(x => x.Id == checklistItemId && x.TenderId == tenderId, cancellationToken);
+
+        if (checklistItem is null)
+        {
+            throw new KeyNotFoundException("Checklist item not found.");
+        }
+
+        var utcNow = DateTimeOffset.UtcNow;
+        if (!string.Equals(checklistItem.LockedByUserId, userId, StringComparison.Ordinal) ||
+            !checklistItem.LockExpiresAtUtc.HasValue ||
+            checklistItem.LockExpiresAtUtc <= utcNow)
+        {
+            throw new UnauthorizedAccessException("Checklist lock required.");
+        }
+
+        if (checklistItem.IsCompleted)
+        {
+            throw new InvalidOperationException("Checklist item is already completed.");
         }
     }
 
