@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Tenderizer.Data;
 
@@ -11,9 +12,11 @@ using Tenderizer.Data;
 namespace Tenderizer.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260424075341_softwarecategories")]
+    partial class softwarecategories
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -254,7 +257,7 @@ namespace Tenderizer.Data.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("LibraryDocuments", (string)null);
+                    b.ToTable("LibraryDocuments");
                 });
 
             modelBuilder.Entity("Tenderizer.Models.LibraryDocumentVersion", b =>
@@ -296,7 +299,7 @@ namespace Tenderizer.Data.Migrations
                     b.HasIndex("LibraryDocumentId", "VersionNumber")
                         .IsUnique();
 
-                    b.ToTable("LibraryDocumentVersions", (string)null);
+                    b.ToTable("LibraryDocumentVersions");
                 });
 
             modelBuilder.Entity("Tenderizer.Models.StoredFile", b =>
@@ -350,7 +353,7 @@ namespace Tenderizer.Data.Migrations
                     b.HasIndex("RelativePath")
                         .IsUnique();
 
-                    b.ToTable("StoredFiles", (string)null);
+                    b.ToTable("StoredFiles");
                 });
 
             modelBuilder.Entity("Tenderizer.Models.Tender", b =>
@@ -372,6 +375,10 @@ namespace Tenderizer.Data.Migrations
 
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("MainStack")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -400,7 +407,7 @@ namespace Tenderizer.Data.Migrations
 
                     b.HasIndex("Status");
 
-                    b.ToTable("Tenders", (string)null);
+                    b.ToTable("Tenders");
                 });
 
             modelBuilder.Entity("Tenderizer.Models.TenderDocument", b =>
@@ -444,7 +451,7 @@ namespace Tenderizer.Data.Migrations
 
                     b.HasIndex("TenderId", "Category", "AttachedAtUtc");
 
-                    b.ToTable("TenderDocuments", (string)null);
+                    b.ToTable("TenderDocuments");
                 });
 
             modelBuilder.Entity("Tenderizer.Models.TenderDocumentCvMetadata", b =>
@@ -465,7 +472,7 @@ namespace Tenderizer.Data.Migrations
 
                     b.HasKey("TenderDocumentId");
 
-                    b.ToTable("TenderDocumentCvMetadata", (string)null);
+                    b.ToTable("TenderDocumentCvMetadata");
                 });
 
             modelBuilder.Entity("Tenderizer.Models.TenderReminder", b =>
@@ -502,7 +509,7 @@ namespace Tenderizer.Data.Migrations
                     b.HasIndex("TenderId", "ReminderAtUtc")
                         .IsUnique();
 
-                    b.ToTable("TenderReminders", (string)null);
+                    b.ToTable("TenderReminders");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
