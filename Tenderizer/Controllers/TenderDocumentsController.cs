@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Tenderizer.Dtos;
@@ -13,15 +14,18 @@ namespace Tenderizer.Controllers;
 public sealed class TenderDocumentsController : Controller
 {
     private readonly ITenderDocumentService _tenderDocumentService;
+    private readonly IDocumentUploadService _documentUploadService;
     private readonly IChecklistService _checklistService;
     private readonly IPrivateFileStore _privateFileStore;
 
     public TenderDocumentsController(
         ITenderDocumentService tenderDocumentService,
+        IDocumentUploadService documentUploadService,
         IChecklistService checklistService,
         IPrivateFileStore privateFileStore)
     {
         _tenderDocumentService = tenderDocumentService;
+        _documentUploadService = documentUploadService;
         _checklistService = checklistService;
         _privateFileStore = privateFileStore;
     }
@@ -76,16 +80,27 @@ public sealed class TenderDocumentsController : Controller
 
         try
         {
-            await _tenderDocumentService.UploadAsync(tenderId, new TenderDocumentUploadDto
+            var metadata = new TenderDocumentUploadMetadata
             {
                 ChecklistItemId = vm.ChecklistItemId,
                 Category = vm.Category,
                 DisplayName = vm.DisplayName,
+            };
+
+            var result = await _documentUploadService.UploadAsync(new DocumentUploadRequestDto
+            {
+                DocumentType = DocumentType.TenderDocument,
+                OwnerId = tenderId,
+                UploadedByUserId = GetUserId(),
                 File = vm.File,
-                PersonName = vm.PersonName,
-                ProjectRole = vm.ProjectRole,
-                IsLeadConsultant = vm.IsLeadConsultant,
-            }, GetUserId(), User.IsInRole("Admin"), cancellationToken);
+                MetadataJson = JsonSerializer.Serialize(metadata),
+            }, User.IsInRole("Admin"), cancellationToken);
+
+            if (!result.Success)
+            {
+                TempData["ErrorMessage"] = result.ErrorMessage ?? "Tender document upload failed.";
+                return RedirectToAction(nameof(Index), new { tenderId });
+            }
 
             TempData["StatusMessage"] = "Tender document uploaded.";
             return RedirectToAction(nameof(Index), new { tenderId });
@@ -122,9 +137,6 @@ public sealed class TenderDocumentsController : Controller
                 LibraryDocumentVersionId = vm.LibraryDocumentVersionId.Value,
                 Category = vm.Category,
                 DisplayName = vm.DisplayName,
-                PersonName = vm.PersonName,
-                ProjectRole = vm.ProjectRole,
-                IsLeadConsultant = vm.IsLeadConsultant,
             }, GetUserId(), User.IsInRole("Admin"), cancellationToken);
 
             TempData["StatusMessage"] = "Library document attached to tender.";
@@ -189,7 +201,6 @@ public sealed class TenderDocumentsController : Controller
             Description = item.Description,
             Required = item.Required,
             IsCompleted = item.IsCompleted,
-            UploadedTenderDocumentId = item.UploadedTenderDocumentId,
             LockedByUserId = item.LockedByUserId,
             LockedAtUtc = item.LockedAtUtc,
             LockExpiresAtUtc = item.LockExpiresAtUtc,

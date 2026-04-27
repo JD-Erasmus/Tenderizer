@@ -31,17 +31,6 @@ public sealed class TenderDocumentUploadVm
     [Required]
     [Display(Name = "File")]
     public IFormFile? File { get; set; }
-
-    [MaxLength(200)]
-    [Display(Name = "Person name")]
-    public string? PersonName { get; set; }
-
-    [MaxLength(200)]
-    [Display(Name = "Role in project")]
-    public string? ProjectRole { get; set; }
-
-    [Display(Name = "Lead consultant")]
-    public bool IsLeadConsultant { get; set; }
 }
 
 public sealed class TenderDocumentAttachLibraryVm
@@ -56,17 +45,6 @@ public sealed class TenderDocumentAttachLibraryVm
     [MaxLength(260)]
     [Display(Name = "Display name")]
     public string? DisplayName { get; set; }
-
-    [MaxLength(200)]
-    [Display(Name = "Person name")]
-    public string? PersonName { get; set; }
-
-    [MaxLength(200)]
-    [Display(Name = "Role in project")]
-    public string? ProjectRole { get; set; }
-
-    [Display(Name = "Lead consultant")]
-    public bool IsLeadConsultant { get; set; }
 }
 
 public sealed class TenderDocumentListItemVm
@@ -82,7 +60,4 @@ public sealed class TenderDocumentListItemVm
     public int? LibraryVersionNumber { get; set; }
     public DateTimeOffset? LibraryVersionExpiryDateUtc { get; set; }
     public string LibraryVersionExpiryStatus { get; set; } = string.Empty;
-    public string? PersonName { get; set; }
-    public string? ProjectRole { get; set; }
-    public bool IsLeadConsultant { get; set; }
 }

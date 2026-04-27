@@ -6,6 +6,8 @@ public sealed class LibraryDocument
 {
     public Guid Id { get; set; }
 
+    public LibraryDocumentType Type { get; set; } = LibraryDocumentType.Other;
+
     [Required]
     [MaxLength(200)]
     public string Name { get; set; } = string.Empty;

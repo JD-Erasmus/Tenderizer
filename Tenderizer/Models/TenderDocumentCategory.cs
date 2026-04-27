@@ -14,6 +14,7 @@ public enum TenderDocumentCategory
     Checklist = 2,
 
     [Display(Name = "CV")]
+    [Obsolete("Use library document classification (LibraryDocumentType/LibraryDocumentSubtype) for CV handling.")]
     Cv = 3,
 
     [Display(Name = "Financial Proposal")]

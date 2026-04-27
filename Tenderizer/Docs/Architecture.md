@@ -34,6 +34,7 @@ Startup and dependency injection
 - ASP.NET Core Identity with roles and EF Core stores
 - MVC controllers with views plus Razor Pages for Identity
 - `ITenderService`, `ITenderDocumentService`, `ILibraryDocumentService`, `IReminderScheduler`, and `IUserLookupService`
+- `IDocumentUploadService`, `IDocumentUploadRouter`, `IDocumentUploadRequestValidator`, and typed `IDocumentUploadRoute` implementations for `TenderDocument`, `LibraryDocument`, and `ChecklistEvidence`
 - `IPrivateFileStore` bound to the file-system-backed private document implementation
 - `Tenderizer.Services.Interfaces.IEmailSender` for tender reminder delivery
 - `Microsoft.AspNetCore.Identity.UI.Services.IEmailSender` via `IdentityEmailSenderAdapter` for Identity confirmation emails
@@ -90,7 +91,12 @@ Presentation layer:
 Application layer:
 
 - `TenderService` owns tender CRUD rules, audit fields, ownership checks for edits, and reminder regeneration triggers
-- `TenderDocumentService` owns tender document uploads, library-version attachments, CV metadata handling, and tender document authorization
+- `DocumentUploadService` owns generic upload orchestration (baseline validation, metadata envelope binding, and route dispatch)
+- Upload routes own per-type behavior:
+  - `TenderDocumentUploadRoute` maps tender metadata and handles optional checklist evidence creation
+  - `LibraryDocumentUploadRoute` persists reusable library documents with `Type` classification (including CV)
+  - `ChecklistEvidenceUploadRoute` persists tender-owned checklist evidence for direct uploads or library-linked evidence
+- `TenderDocumentService` remains focused on tender document query/attachment behavior and authorization
 - `LibraryDocumentService` owns reusable document creation, immutable versioning, and current-version switching
 - `UserLookupService` provides owner dropdown data for admins
 
@@ -109,8 +115,9 @@ Data layer:
 - `Tender` and `TenderReminder` are mapped with indexes and a unique reminder-time constraint
 - `StoredFile` is the immutable file record for everything written to private storage
 - `LibraryDocument` and `LibraryDocumentVersion` implement reusable document versioning with one current version per document
+- `LibraryDocument` includes reusable `Type` classification and models CV as a library concern
 - `TenderDocument` stores both the pinned `StoredFileId` and, when relevant, the source `LibraryDocumentVersionId`
-- `TenderDocumentCvMetadata` holds optional CV-specific metadata for tender attachments
+- `ChecklistDocument` stores tender-owned checklist evidence linked to checklist requirements and optional reusable source versions
 
 Primary flows
 -------------
@@ -132,12 +139,15 @@ Create or update flow:
 
 Document flow:
 
-1. A user uploads a file or attaches a reusable library document version.
-2. `PrivateFileStore` saves new uploads under the configured private root and returns immutable file metadata.
-3. `StoredFile` is created once per upload and never mutated.
-4. `LibraryDocumentService` creates or advances `LibraryDocumentVersion` records, marking exactly one version current.
-5. `TenderDocumentService` creates `TenderDocument` rows that pin the exact `StoredFileId` used at attachment time.
-6. Downloads are served only through authenticated controller endpoints.
+1. A user submits a generic upload request through the document endpoint.
+2. `DocumentUploadService` validates baseline file constraints and metadata envelope shape.
+3. `DocumentUploadRouter` resolves the type-specific route by `DocumentType`.
+4. The resolved route executes domain-specific validation and persistence.
+5. `PrivateFileStore` saves direct uploads under the configured private root and returns immutable file metadata.
+6. `StoredFile` is created once per upload and never mutated.
+7. `LibraryDocumentService` creates or advances `LibraryDocumentVersion` records, marking exactly one version current.
+8. Tender and checklist routes persist tender-owned records (`TenderDocument` / `ChecklistDocument`) and optional reuse links.
+9. Downloads are served only through authenticated controller endpoints.
 
 Reminder flow:
 
@@ -158,6 +168,7 @@ A new "Tender workflow" feature coordinates tender status transitions, team assi
 - Workflow statuses: `Draft`, `Identified`, `InProgress`, `Submitted`, `Won`, `Lost`, `Cancelled`. `Draft` is the initial state; `Identified` indicates assigned team members and triggers checklist generation; `InProgress` enables collaborative uploads against checklist items; terminal outcomes are represented by `Submitted`, `Won`, `Lost`, and `Cancelled`.
 - Assignments: tenders support assigning one or more users (many-to-many) who may upload documents and complete checklist items.
 - Checklist: persisted `ChecklistItem` entities are generated when a tender is identified. Uploads can satisfy checklist items and are tracked on the checklist.
+- Checklist evidence: uploads are persisted as `ChecklistDocument` records, with checklist completion updated from evidence attachment rather than legacy indirect linkage.
 
 This feature touches the application layer (`TenderService`, `TenderDocumentService`), the data layer (new `ChecklistItem` and `TenderAssignment` entities and migrations), and the presentation layer (tender details summary + document snapshot and checklist-linked upload flows on the tender documents page).
 

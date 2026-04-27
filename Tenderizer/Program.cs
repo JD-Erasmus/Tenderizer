@@ -27,6 +27,12 @@ builder.Services.Configure<DocumentStorageOptions>(builder.Configuration.GetSect
 builder.Services.AddScoped<IPrivateFileStore, PrivateFileStore>();
 builder.Services.AddScoped<ILibraryDocumentService, LibraryDocumentService>();
 builder.Services.AddScoped<ITenderDocumentService, TenderDocumentService>();
+builder.Services.AddScoped<IDocumentUploadRequestValidator, DocumentUploadRequestValidator>();
+builder.Services.AddScoped<IDocumentUploadRouter, DocumentUploadRouter>();
+builder.Services.AddScoped<IDocumentUploadService, DocumentUploadService>();
+builder.Services.AddScoped<IDocumentUploadRoute, TenderDocumentUploadRoute>();
+builder.Services.AddScoped<IDocumentUploadRoute, LibraryDocumentUploadRoute>();
+builder.Services.AddScoped<IDocumentUploadRoute, ChecklistEvidenceUploadRoute>();
 builder.Services.AddSingleton<IChecklistTemplateProvider, ChecklistTemplateProvider>();
 builder.Services.AddScoped<IChecklistService, ChecklistService>();
 

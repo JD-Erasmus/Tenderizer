@@ -250,13 +250,13 @@ public sealed class TendersController : Controller
 
     [HttpPost("{id:guid}/checklist/items/{checklistItemId:int}/complete")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> MarkChecklistItemCompleted(Guid id, int checklistItemId, [FromForm] Guid? tenderDocumentId)
+    public async Task<IActionResult> MarkChecklistItemCompleted(Guid id, int checklistItemId)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
 
         try
         {
-            await _checklistService.MarkCompletedAsync(checklistItemId, tenderDocumentId, userId);
+            await _checklistService.MarkCompletedAsync(checklistItemId, userId);
             return NoContent();
         }
         catch (KeyNotFoundException)
@@ -444,7 +444,6 @@ public sealed class TendersController : Controller
             Description = item.Description,
             Required = item.Required,
             IsCompleted = item.IsCompleted,
-            UploadedTenderDocumentId = item.UploadedTenderDocumentId,
             LockedByUserId = item.LockedByUserId,
             LockedAtUtc = item.LockedAtUtc,
             LockExpiresAtUtc = item.LockExpiresAtUtc,

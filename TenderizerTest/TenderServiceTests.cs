@@ -393,7 +393,7 @@ public sealed class TenderServiceTests
         public Task<IEnumerable<ChecklistItem>> GetChecklistAsync(Guid tenderId, string userId) => Task.FromResult<IEnumerable<ChecklistItem>>(Array.Empty<ChecklistItem>());
         public Task<bool> AcquireLockAsync(int checklistItemId, string userId, TimeSpan? timeout = null) => Task.FromResult(false);
         public Task<bool> ReleaseLockAsync(int checklistItemId, string userId) => Task.FromResult(false);
-        public Task MarkCompletedAsync(int checklistItemId, Guid? tenderDocumentId, string userId) => Task.CompletedTask;
+        public Task MarkCompletedAsync(int checklistItemId, string userId) => Task.CompletedTask;
         public Task<ChecklistItem> AddItemAsync(Guid tenderId, Tenderizer.Dtos.CreateChecklistItemDto dto, string userId) => throw new NotSupportedException();
         public Task UpdateItemAsync(int checklistItemId, Tenderizer.Dtos.UpdateChecklistItemDto dto, string userId) => Task.CompletedTask;
         public Task RemoveItemAsync(int checklistItemId, string userId) => Task.CompletedTask;
@@ -418,7 +418,7 @@ public sealed class TenderServiceTests
         public Task<IEnumerable<ChecklistItem>> GetChecklistAsync(Guid tenderId, string userId) => Task.FromResult<IEnumerable<ChecklistItem>>(Array.Empty<ChecklistItem>());
         public Task<bool> AcquireLockAsync(int checklistItemId, string userId, TimeSpan? timeout = null) => Task.FromResult(false);
         public Task<bool> ReleaseLockAsync(int checklistItemId, string userId) => Task.FromResult(false);
-        public Task MarkCompletedAsync(int checklistItemId, Guid? tenderDocumentId, string userId) => Task.CompletedTask;
+        public Task MarkCompletedAsync(int checklistItemId, string userId) => Task.CompletedTask;
         public Task<ChecklistItem> AddItemAsync(Guid tenderId, Tenderizer.Dtos.CreateChecklistItemDto dto, string userId) => throw new NotSupportedException();
         public Task UpdateItemAsync(int checklistItemId, Tenderizer.Dtos.UpdateChecklistItemDto dto, string userId) => Task.CompletedTask;
         public Task RemoveItemAsync(int checklistItemId, string userId) => Task.CompletedTask;

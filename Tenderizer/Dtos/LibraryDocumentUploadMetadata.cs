@@ -1,13 +1,11 @@
-using Microsoft.AspNetCore.Http;
 using Tenderizer.Models;
 
 namespace Tenderizer.Dtos;
 
-public sealed class LibraryDocumentCreateDto
+public sealed class LibraryDocumentUploadMetadata
 {
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public LibraryDocumentType Type { get; set; } = LibraryDocumentType.Other;
-    public IFormFile File { get; set; } = null!;
     public DateTimeOffset? ExpiryDateUtc { get; set; }
 }

@@ -6,7 +6,6 @@ using Microsoft.Extensions.Options;
 using Tenderizer.Dtos;
 using Tenderizer.Models;
 using Tenderizer.Services.Implementations;
-using Tenderizer.Services.Interfaces;
 using Tenderizer.Services.Options;
 
 namespace TenderizerTest;
@@ -30,7 +29,7 @@ public sealed class TenderDocumentServiceTests : IDisposable
 
         var store = CreateStore();
         var libraryService = new LibraryDocumentService(db, store);
-        var tenderDocumentService = new TenderDocumentService(db, new NoOpChecklistService(), store);
+        var tenderDocumentService = new TenderDocumentService(db, store);
 
         db.Tenders.Add(new Tender
         {
@@ -107,15 +106,5 @@ public sealed class TenderDocumentServiceTests : IDisposable
         public string EnvironmentName { get; set; } = "Development";
         public string ContentRootPath { get; set; } = string.Empty;
         public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
-    }
-
-    private sealed class NoOpChecklistService : IChecklistService
-    {
-        public Task GenerateChecklistAsync(Guid tenderId, string? templateName = null) => Task.CompletedTask;
-        public Task<IEnumerable<ChecklistItem>> GetChecklistAsync(Guid tenderId, string userId) => Task.FromResult<IEnumerable<ChecklistItem>>(Array.Empty<ChecklistItem>());
-        public Task MarkCompletedAsync(int checklistItemId, Guid? tenderDocumentId, string userId) => Task.CompletedTask;
-        public Task<ChecklistItem> AddItemAsync(Guid tenderId, Tenderizer.Dtos.CreateChecklistItemDto dto, string userId) => throw new NotSupportedException();
-        public Task UpdateItemAsync(int checklistItemId, Tenderizer.Dtos.UpdateChecklistItemDto dto, string userId) => Task.CompletedTask;
-        public Task RemoveItemAsync(int checklistItemId, string userId) => Task.CompletedTask;
     }
 }

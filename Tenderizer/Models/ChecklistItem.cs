@@ -20,8 +20,6 @@ public class ChecklistItem
 
     public bool IsCompleted { get; set; }
 
-    public Guid? UploadedTenderDocumentId { get; set; }
-
     // Locking
     public string? LockedByUserId { get; set; }
     public DateTimeOffset? LockedAtUtc { get; set; }
@@ -29,4 +27,6 @@ public class ChecklistItem
 
     public DateTimeOffset CreatedAtUtc { get; set; }
     public DateTimeOffset UpdatedAtUtc { get; set; }
+
+    public ICollection<ChecklistDocument> ChecklistDocuments { get; set; } = new List<ChecklistDocument>();
 }

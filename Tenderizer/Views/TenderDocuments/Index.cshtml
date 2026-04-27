@@ -58,26 +58,6 @@
                         <input asp-for="Upload.File" class="form-control" type="file" />
                     </div>
 
-                    <div class="row g-2">
-                        <div class="col-md-6">
-                            <label asp-for="Upload.PersonName" class="form-label"></label>
-                            <input asp-for="Upload.PersonName" class="form-control" />
-                        </div>
-
-                        <div class="col-md-6">
-                            <label asp-for="Upload.ProjectRole" class="form-label"></label>
-                            <input asp-for="Upload.ProjectRole" class="form-control" />
-                        </div>
-
-                        <div class="col-12">
-                            <div class="form-check">
-                                <input asp-for="Upload.IsLeadConsultant" class="form-check-input" />
-                                <label asp-for="Upload.IsLeadConsultant" class="form-check-label"></label>
-                            </div>
-                            <div class="form-text">CV metadata is only used when the category is CV.</div>
-                        </div>
-                    </div>
-
                     <button type="submit" class="btn btn-primary mt-3">Upload Document</button>
                 </form>
             </div>
@@ -111,26 +91,6 @@
                     <div class="mb-3">
                         <label asp-for="AttachLibrary.DisplayName" class="form-label"></label>
                         <input asp-for="AttachLibrary.DisplayName" class="form-control" />
-                    </div>
-
-                    <div class="row g-2">
-                        <div class="col-md-6">
-                            <label asp-for="AttachLibrary.PersonName" class="form-label"></label>
-                            <input asp-for="AttachLibrary.PersonName" class="form-control" />
-                        </div>
-
-                        <div class="col-md-6">
-                            <label asp-for="AttachLibrary.ProjectRole" class="form-label"></label>
-                            <input asp-for="AttachLibrary.ProjectRole" class="form-control" />
-                        </div>
-
-                        <div class="col-12">
-                            <div class="form-check">
-                                <input asp-for="AttachLibrary.IsLeadConsultant" class="form-check-input" />
-                                <label asp-for="AttachLibrary.IsLeadConsultant" class="form-check-label"></label>
-                            </div>
-                            <div class="form-text">CV metadata is only used when the category is CV.</div>
-                        </div>
                     </div>
 
                     <button type="submit" class="btn btn-outline-primary mt-3">Attach Library Version</button>
@@ -184,24 +144,13 @@ else
                                 </td>
                                 <td>@item.AttachedAtUtc.ToString("yyyy-MM-dd HH:mm") UTC</td>
                                 <td>
-                                    @if (!string.IsNullOrWhiteSpace(item.PersonName) || !string.IsNullOrWhiteSpace(item.ProjectRole) || item.IsLeadConsultant)
-                                    {
-                                        @if (!string.IsNullOrWhiteSpace(item.PersonName))
-                                        {
-                                            <div>@item.PersonName</div>
-                                        }
-                                        @if (!string.IsNullOrWhiteSpace(item.ProjectRole))
-                                        {
-                                            <div class="text-muted small">@item.ProjectRole</div>
-                                        }
-                                        @if (item.IsLeadConsultant)
-                                        {
-                                            <div class="badge text-bg-info mt-1">Lead consultant</div>
-                                        }
-                                    }
-                                    else if (!string.IsNullOrWhiteSpace(item.LibraryVersionExpiryStatus))
+                                    @if (!string.IsNullOrWhiteSpace(item.LibraryVersionExpiryStatus))
                                     {
                                         <span class="text-muted small">@item.LibraryVersionExpiryStatus</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted small">-</span>
                                     }
                                 </td>
                                 <td class="text-end">

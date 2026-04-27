@@ -12,11 +12,11 @@ Evolve the existing tender upload flow into a generic document upload pipeline t
 | Area | Current implementation | Alignment to target model | Gap / action |
 |---|---|---|---|
 | Physical file layer | `StoredFile` used by `TenderDocument` and `LibraryDocumentVersion` | ? aligned | Keep as shared physical blob abstraction |
-| Reusable document identity | `LibraryDocument` + `LibraryDocumentVersion` with version history | ? aligned | Add explicit library subtype/classification for CV |
+| Reusable document identity | `LibraryDocument` + `LibraryDocumentVersion` with version history | ? aligned | Add explicit library type classification for CV |
 | Tender-owned submission artifacts | `TenderDocument` linked to `Tender` and optional `LibraryDocumentVersionId` | ? aligned | Keep ownership on tender side; preserve optional reuse link |
-| CV handling | `TenderDocumentCategory.Cv` + `TenderDocumentCvMetadata` on tender side | ?? partially aligned | Move to library classification model (`LibraryDocument` subtype = CV); deprecate tender-side CV specialization |
-| Checklist evidence ownership | Checklist uses `ChecklistItem.UploadedTenderDocumentId` linkage | ?? partially aligned | Introduce explicit `ChecklistDocument` aggregate (tender-owned, checklist-linked, optional library source) |
-| Checklist linkage integrity | `UploadedTenderDocumentId` is a loose link field | ? not aligned | Add explicit foreign keys and navigations for checklist evidence |
+| CV handling | CV classification on `LibraryDocument.Type` | ? aligned | Keep CV classification in reusable library model |
+| Checklist evidence ownership | `ChecklistDocument` links tender + checklist + file (+ optional library source) | ? aligned | Keep explicit tender-owned evidence aggregate |
+| Checklist linkage integrity | Explicit checklist evidence relationships and foreign keys | ? aligned | Keep `ChecklistDocument` as active write/read path |
 | Upload orchestration | Tender-specific upload service + DTOs | ?? partially aligned | Introduce generic orchestrator with routed typed metadata contracts |
 
 ### Baseline Constraints
@@ -52,7 +52,7 @@ Suggested enum:
 Type hierarchy clarification:
 - `TenderDocument` = the main tender pack document (RFP/RFQ or equivalent core tender file).
 - `LibraryDocument` = reusable shared document.
-- CV documents are modeled as a **library document subtype** (not a top-level document type).
+- CV documents are modeled as a **library document type classification** (not a top-level document type).
 - `ChecklistEvidence` = tender-owned evidence document attached to checklist items.
 - `ChecklistEvidence` may be uploaded directly or linked from an existing library document.
 
@@ -64,7 +64,7 @@ Initial delivery scope:
 ## Target Entity Contracts (Canonical)
 ### `LibraryDocument`
 - Represents reusable business identity.
-- Add `Type`/`Subtype` classification (e.g., `Cv`, `Certificate`, `Policy`, `Template`).
+- Add `Type` classification (e.g., `Cv`, `Certificate`, `Policy`, `Template`).
 - Remains independent from tender ownership.
 
 ### `LibraryDocumentVersion`
@@ -94,7 +94,7 @@ Initial delivery scope:
 - `DocumentType`
 - `OwnerId` (tender id, library id, or equivalent)
 - `UploadedByUserId`
-- `IFormFile File`
+- Optional `IFormFile File` (required for direct uploads; omitted for library-linked checklist evidence)
 - Generic metadata payload (route-specific DTO serialized in outer request)
 
 Typed metadata contract rule:
@@ -104,8 +104,8 @@ Typed metadata contract rule:
 - No untyped dictionary access inside route implementations.
 
 Metadata expectations by type:
-- `TenderDocument` metadata contract includes tender-specific fields (e.g., `Category`, `DisplayName`, CV-related fields currently used by tender uploads).
-- `LibraryDocument` metadata contract includes subtype/classification (e.g., `LibrarySubtype = Cv`) and library-specific fields.
+- `TenderDocument` metadata contract includes tender-specific fields (e.g., `Category`, `DisplayName`, optional `ChecklistItemId`).
+- `LibraryDocument` metadata contract includes reusable `Type` classification (e.g., `Type = Cv`) and library-specific fields.
 - `ChecklistEvidence` metadata contract includes checklist linkage fields, including optional `LibraryDocumentVersionId` when evidence is sourced from library.
 
 ### Upload result
@@ -133,13 +133,13 @@ Each route should define:
 - Post-upload actions (if any).
 
 Tender route specifics (phase 1):
-- Map from generic metadata to current tender fields (`Category`, `DisplayName`, CV metadata).
-- Preserve checklist completion behavior where `ChecklistItemId` is provided.
+- Map from generic metadata to tender fields (`Category`, `DisplayName`).
+- Create `ChecklistDocument` evidence and mark checklist completion where `ChecklistItemId` is provided.
 - Preserve current authorization semantics (owner/assignment/admin).
 
 Library route specifics (when enabled):
 - Handle reusable document persistence and versioning behavior.
-- Handle CV as a library subtype rather than a separate top-level route.
+- Handle CV as a library `Type` classification rather than a separate top-level route.
 
 Checklist evidence specifics (when enabled):
 - Treat checklist evidence as tender-owned child documents.
@@ -164,26 +164,11 @@ Checklist evidence specifics (when enabled):
 - Keep user-facing messages generic; keep detailed diagnostics in logs.
 - Keep parity with current tender controller UX (`TempData` success/error messages).
 
-## Migration Strategy (Additive First)
-### Phase 1: Add new contracts and schema
-- Add library classification field(s) for reusable type/subtype.
-- Add `ChecklistDocument` table + relationships (`Tender`, `ChecklistItem`, `StoredFile`, optional `LibraryDocumentVersion`).
-- Keep existing `TenderDocument` + `ChecklistItem.UploadedTenderDocumentId` behavior active.
-
-### Phase 2: Dual-write / compatibility window
-- New checklist evidence flows write to `ChecklistDocument`.
-- Existing tender upload paths continue unchanged for parity.
-- Read models support both legacy and new linkage paths during transition.
-
-### Phase 3: Backfill and parity verification
-- Backfill legacy checklist linkage records into `ChecklistDocument`.
-- Verify parity for upload, authorization, download, and checklist completion behavior.
-- Add telemetry/log checks for migration correctness.
-
-### Phase 4: Cleanup
-- Remove tender-side CV special handling (`TenderDocumentCategory.Cv` and `TenderDocumentCvMetadata`) after library subtype parity is verified.
-- Remove legacy checklist indirect linkage field once all reads/writes use `ChecklistDocument`.
-- Keep endpoint routes stable while internal model cleanup completes.
+## Migration Strategy (Early Development Mode)
+- Controlled breaking changes are acceptable in this phase.
+- Legacy data backfill is optional and can be skipped.
+- Prefer model convergence and code simplification over temporary compatibility.
+- Keep endpoint routes stable where practical while completing internal cleanup.
 
 ## Implementation Steps
 1. Add `DocumentType` enum and generic request/result DTOs.
@@ -197,7 +182,7 @@ Checklist evidence specifics (when enabled):
 9. Verify parity against current tender upload behavior (success, validation, authorization).
 10. Add/adjust unit tests for router resolution, baseline validation, metadata binding, and route success/failure.
 11. Add integration test for tender route end-to-end.
-12. Introduce `LibraryDocument` route with subtype support (including CV classification).
+12. Introduce `LibraryDocument` route with type classification support (including CV classification).
 13. Introduce `ChecklistEvidence` route for tender-child checklist documents with optional library linkage.
 
 ## Testing Plan
@@ -209,7 +194,7 @@ Checklist evidence specifics (when enabled):
   - route success => normalized success result
   - route failure => normalized failure result
   - tender route maps metadata to domain entity correctly
-  - library route maps CV subtype correctly
+  - library route maps CV type classification correctly
   - checklist route accepts library-linked evidence metadata
 - Integration tests:
   - tender upload persists stored file + `TenderDocument` record

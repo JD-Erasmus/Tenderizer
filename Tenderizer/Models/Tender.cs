@@ -38,4 +38,5 @@ public class Tender
     public DateTimeOffset? ChecklistGeneratedAt { get; set; }
     public ICollection<TenderAssignment> Assignments { get; set; } = new List<TenderAssignment>();
     public ICollection<ChecklistItem> ChecklistItems { get; set; } = new List<ChecklistItem>();
+    public ICollection<ChecklistDocument> ChecklistDocuments { get; set; } = new List<ChecklistDocument>();
 }

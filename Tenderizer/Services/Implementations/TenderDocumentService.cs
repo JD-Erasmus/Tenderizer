@@ -10,13 +10,11 @@ namespace Tenderizer.Services.Implementations;
 public sealed class TenderDocumentService : ITenderDocumentService
 {
     private readonly ApplicationDbContext _db;
-    private readonly IChecklistService _checklistService;
     private readonly IPrivateFileStore _privateFileStore;
 
-    public TenderDocumentService(ApplicationDbContext db, IChecklistService checklistService, IPrivateFileStore privateFileStore)
+    public TenderDocumentService(ApplicationDbContext db, IPrivateFileStore privateFileStore)
     {
         _db = db;
-        _checklistService = checklistService;
         _privateFileStore = privateFileStore;
     }
 
@@ -40,7 +38,6 @@ public sealed class TenderDocumentService : ITenderDocumentService
             .Include(x => x.StoredFile)
             .Include(x => x.LibraryDocumentVersion)
             .ThenInclude(x => x!.LibraryDocument)
-            .Include(x => x.CvMetadata)
             .OrderBy(x => x.Category)
             .ThenByDescending(x => x.AttachedAtUtc)
             .ToListAsync(cancellationToken);
@@ -104,16 +101,9 @@ public sealed class TenderDocumentService : ITenderDocumentService
             AttachedAtUtc = utcNow,
         };
 
-        ApplyCvMetadata(document, dto.Category, dto.PersonName, dto.ProjectRole, dto.IsLeadConsultant);
-
         _db.StoredFiles.Add(storedFile);
         _db.TenderDocuments.Add(document);
         await _db.SaveChangesAsync(cancellationToken);
-
-        if (dto.ChecklistItemId.HasValue)
-        {
-            await _checklistService.MarkCompletedAsync(dto.ChecklistItemId.Value, documentId, userId);
-        }
 
         return documentId;
     }
@@ -158,8 +148,6 @@ public sealed class TenderDocumentService : ITenderDocumentService
             AttachedByUserId = userId,
             AttachedAtUtc = DateTimeOffset.UtcNow,
         };
-
-        ApplyCvMetadata(document, dto.Category, dto.PersonName, dto.ProjectRole, dto.IsLeadConsultant);
 
         _db.TenderDocuments.Add(document);
         await _db.SaveChangesAsync(cancellationToken);
@@ -226,9 +214,6 @@ public sealed class TenderDocumentService : ITenderDocumentService
             LibraryVersionNumber = document.LibraryDocumentVersion?.VersionNumber,
             LibraryVersionExpiryDateUtc = document.LibraryDocumentVersion?.ExpiryDateUtc,
             LibraryVersionExpiryStatus = LibraryDocumentService.DescribeExpiry(document.LibraryDocumentVersion?.ExpiryDateUtc),
-            PersonName = document.CvMetadata?.PersonName,
-            ProjectRole = document.CvMetadata?.ProjectRole,
-            IsLeadConsultant = document.CvMetadata?.IsLeadConsultant ?? false,
         };
     }
 
@@ -250,27 +235,6 @@ public sealed class TenderDocumentService : ITenderDocumentService
             Sha256 = fileResult.Sha256,
             UploadedByUserId = userId,
             UploadedAtUtc = uploadedAtUtc,
-        };
-    }
-
-    private static void ApplyCvMetadata(
-        TenderDocument document,
-        TenderDocumentCategory category,
-        string? personName,
-        string? projectRole,
-        bool isLeadConsultant)
-    {
-        if (category != TenderDocumentCategory.Cv)
-        {
-            return;
-        }
-
-        document.CvMetadata = new TenderDocumentCvMetadata
-        {
-            TenderDocumentId = document.Id,
-            PersonName = personName?.Trim(),
-            ProjectRole = projectRole?.Trim(),
-            IsLeadConsultant = isLeadConsultant,
         };
     }
 

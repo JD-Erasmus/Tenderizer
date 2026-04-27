@@ -58,12 +58,10 @@ public sealed class ChecklistServiceTests
         var item = await CreateChecklistItemAsync(db, tender.Id, "Technical Specifications", required: true);
         var service = CreateService(db);
 
-        var uploadedDocumentId = Guid.NewGuid();
-        await service.MarkCompletedAsync(item.Id, uploadedDocumentId, "user-1");
+        await service.MarkCompletedAsync(item.Id, "user-1");
 
         var reloaded = await db.ChecklistItems.AsNoTracking().SingleAsync(x => x.Id == item.Id);
         Assert.True(reloaded.IsCompleted);
-        Assert.Equal(uploadedDocumentId, reloaded.UploadedTenderDocumentId);
     }
 
     [Fact]

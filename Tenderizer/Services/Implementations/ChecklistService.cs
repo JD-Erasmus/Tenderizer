@@ -77,7 +77,7 @@ public class ChecklistService : IChecklistService
             .ToListAsync();
     }
 
-    public async Task MarkCompletedAsync(int checklistItemId, Guid? tenderDocumentId, string userId)
+    public async Task MarkCompletedAsync(int checklistItemId, string userId)
     {
         await using var transaction = await _db.Database.BeginTransactionAsync();
 
@@ -92,7 +92,6 @@ public class ChecklistService : IChecklistService
         }
 
         item.IsCompleted = true;
-        item.UploadedTenderDocumentId = tenderDocumentId;
         item.UpdatedAtUtc = DateTimeOffset.UtcNow;
 
         await _db.SaveChangesAsync();

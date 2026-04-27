@@ -8,7 +8,6 @@ public sealed class ChecklistItemVm
     public string? Description { get; set; }
     public bool Required { get; set; }
     public bool IsCompleted { get; set; }
-    public Guid? UploadedTenderDocumentId { get; set; }
     public string? LockedByUserId { get; set; }
     public DateTimeOffset? LockedAtUtc { get; set; }
     public DateTimeOffset? LockExpiresAtUtc { get; set; }

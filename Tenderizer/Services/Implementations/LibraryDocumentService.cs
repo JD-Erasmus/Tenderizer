@@ -117,6 +117,7 @@ public sealed class LibraryDocumentService : ILibraryDocumentService
             Id = documentId,
             Name = name,
             Description = dto.Description?.Trim(),
+            Type = dto.Type,
             CreatedByUserId = userId,
             CreatedAtUtc = utcNow,
             UpdatedAtUtc = utcNow,

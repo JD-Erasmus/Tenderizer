@@ -39,4 +39,5 @@ public sealed class StoredFile
 
     public ICollection<LibraryDocumentVersion> LibraryDocumentVersions { get; set; } = new List<LibraryDocumentVersion>();
     public ICollection<TenderDocument> TenderDocuments { get; set; } = new List<TenderDocument>();
+    public ICollection<ChecklistDocument> ChecklistDocuments { get; set; } = new List<ChecklistDocument>();
 }

@@ -80,9 +80,18 @@ Relationships and indexes
 Checklist completion linkage
 ----------------------------
 
-- `ChecklistItem` completion is driven by document linkage (`UploadedTenderDocumentId`) and `IsCompleted` state.
-- Upload flows may optionally associate the upload to a checklist item; when linked, checklist completion is tracked directly in the item record.
+- Checklist evidence is modeled explicitly as `ChecklistDocument`.
+- `ChecklistDocument` is tender-owned evidence and references `Tender`, `ChecklistItem`, `StoredFile`, and optional `LibraryDocumentVersion`.
+- `ChecklistItem` completion is updated when valid evidence is attached.
 - Authorization for uploads and checklist changes is enforced server-side based on owner/admin/assignment rules.
+
+Document classification and ownership
+-------------------------------------
+
+- `LibraryDocument` is the reusable identity aggregate and includes `Type` classification (`Cv`, `Certificate`, `Policy`, `Template`, `Other`).
+- CV is modeled as library classification (`LibraryDocument.Type = Cv`), not as tender-specific metadata.
+- `TenderDocument` remains tender-owned submission context.
+- `ChecklistDocument` remains tender-owned evidence context, even when linked to a reusable library version.
 
 Reminder lifecycle
 ------------------
