@@ -25,6 +25,24 @@
             <div class="card-body">
                 <h2 class="h5">Upload New Tender Document</h2>
 
+                @if (Model.CanViewChecklist)
+                {
+                    <div class="mb-3 border rounded p-3">
+                        <div class="fw-semibold mb-2">Need a new checklist item?</div>
+                        <form method="post"
+                              asp-controller="Tenders"
+                              asp-action="AddChecklistItem"
+                              asp-route-id="@Model.TenderId"
+                              data-checklist-ajax-form="true">
+                            @Html.AntiForgeryToken()
+                            <div class="input-group input-group-sm">
+                                <input name="Title" class="form-control" maxlength="200" placeholder="New checklist item title" required />
+                                <button type="submit" class="btn btn-outline-secondary">Add Checklist Item</button>
+                            </div>
+                        </form>
+                    </div>
+                }
+
                 <form method="post" asp-action="Upload" asp-route-tenderId="@Model.TenderId" enctype="multipart/form-data">
                     @Html.AntiForgeryToken()
 
