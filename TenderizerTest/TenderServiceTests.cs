@@ -298,9 +298,93 @@ public sealed class TenderServiceTests
         Assert.False(await db.Tenders.AsNoTracking().AnyAsync(t => t.Id == id));
     }
 
-    private static TenderService CreateService(ApplicationDbContext db)
+    [Fact]
+    public async Task UpdateStatusAsync_WhenDraftToIdentified_GeneratesChecklistAndSendsStatusNotification()
     {
-        return new TenderService(db, new NoOpChecklistService(), new NoOpNotificationService(), new ReminderScheduler(db, TestDbFactory.CreateConfiguration()));
+        var (db, connection) = await TestDbFactory.CreateSqliteDbContextAsync();
+        await using var _ = db;
+        await using var __ = connection;
+
+        var checklist = new RecordingChecklistService();
+        var notifications = new RecordingNotificationService();
+        var service = CreateService(db, checklist, notifications);
+
+        var tenderId = await service.CreateAsync(new TenderUpsertDto
+        {
+            Name = "Tender A",
+            OwnerUserId = "owner",
+            ClosingAtUtc = DateTimeOffset.UtcNow.AddDays(5),
+            Status = TenderStatus.Draft,
+        }, userId: "owner", isAdmin: false);
+
+        await service.UpdateStatusAsync(tenderId, TenderStatus.Identified, userId: "owner", isAdmin: false);
+
+        Assert.Contains(tenderId, checklist.GeneratedTenderIds);
+        var statusNotification = Assert.Single(notifications.StatusChanges);
+        Assert.Equal(tenderId, statusNotification.TenderId);
+        Assert.Equal(TenderStatus.Draft, statusNotification.From);
+        Assert.Equal(TenderStatus.Identified, statusNotification.To);
+    }
+
+    [Fact]
+    public async Task CreateAsync_WhenAssignedUsersProvided_SendsAssignmentAndInitialStatusNotifications()
+    {
+        var (db, connection) = await TestDbFactory.CreateSqliteDbContextAsync();
+        await using var _ = db;
+        await using var __ = connection;
+
+        db.Users.AddRange(
+            new IdentityUser
+            {
+                Id = "user-1",
+                UserName = "user1@local.test",
+                NormalizedUserName = "USER1@LOCAL.TEST",
+                Email = "user1@local.test",
+                NormalizedEmail = "USER1@LOCAL.TEST",
+            },
+            new IdentityUser
+            {
+                Id = "user-2",
+                UserName = "user2@local.test",
+                NormalizedUserName = "USER2@LOCAL.TEST",
+                Email = "user2@local.test",
+                NormalizedEmail = "USER2@LOCAL.TEST",
+            });
+        await db.SaveChangesAsync();
+
+        var checklist = new RecordingChecklistService();
+        var notifications = new RecordingNotificationService();
+        var service = CreateService(db, checklist, notifications);
+
+        var tenderId = await service.CreateAsync(new TenderUpsertDto
+        {
+            Name = "Tender B",
+            OwnerUserId = "owner",
+            ClosingAtUtc = DateTimeOffset.UtcNow.AddDays(5),
+            Status = TenderStatus.Identified,
+            AssignedUserIds = ["user-1", "user-2"],
+        }, userId: "owner", isAdmin: false);
+
+        Assert.Equal(2, notifications.AssignmentNotifications.Count);
+        Assert.Contains(notifications.AssignmentNotifications, x => x.AssignedUserId == "user-1" && x.TenderId == tenderId);
+        Assert.Contains(notifications.AssignmentNotifications, x => x.AssignedUserId == "user-2" && x.TenderId == tenderId);
+
+        var statusNotification = Assert.Single(notifications.StatusChanges);
+        Assert.Equal(TenderStatus.Draft, statusNotification.From);
+        Assert.Equal(TenderStatus.Identified, statusNotification.To);
+        Assert.Contains(tenderId, checklist.GeneratedTenderIds);
+    }
+
+    private static TenderService CreateService(
+        ApplicationDbContext db,
+        IChecklistService? checklistService = null,
+        INotificationService? notificationService = null)
+    {
+        return new TenderService(
+            db,
+            checklistService ?? new NoOpChecklistService(),
+            notificationService ?? new NoOpNotificationService(),
+            new ReminderScheduler(db, TestDbFactory.CreateConfiguration()));
     }
 
     private sealed class NoOpChecklistService : IChecklistService
@@ -319,5 +403,42 @@ public sealed class TenderServiceTests
     {
         public Task NotifyTenderAssignedAsync(Guid tenderId, string tenderName, string assignedUserId, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task NotifyTenderStatusChangedAsync(Guid tenderId, string tenderName, TenderStatus previousStatus, TenderStatus currentStatus, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
+    private sealed class RecordingChecklistService : IChecklistService
+    {
+        public List<Guid> GeneratedTenderIds { get; } = [];
+
+        public Task GenerateChecklistAsync(Guid tenderId, string? templateName = null)
+        {
+            GeneratedTenderIds.Add(tenderId);
+            return Task.CompletedTask;
+        }
+
+        public Task<IEnumerable<ChecklistItem>> GetChecklistAsync(Guid tenderId, string userId) => Task.FromResult<IEnumerable<ChecklistItem>>(Array.Empty<ChecklistItem>());
+        public Task<bool> AcquireLockAsync(int checklistItemId, string userId, TimeSpan? timeout = null) => Task.FromResult(false);
+        public Task<bool> ReleaseLockAsync(int checklistItemId, string userId) => Task.FromResult(false);
+        public Task MarkCompletedAsync(int checklistItemId, Guid? tenderDocumentId, string userId) => Task.CompletedTask;
+        public Task<ChecklistItem> AddItemAsync(Guid tenderId, Tenderizer.Dtos.CreateChecklistItemDto dto, string userId) => throw new NotSupportedException();
+        public Task UpdateItemAsync(int checklistItemId, Tenderizer.Dtos.UpdateChecklistItemDto dto, string userId) => Task.CompletedTask;
+        public Task RemoveItemAsync(int checklistItemId, string userId) => Task.CompletedTask;
+    }
+
+    private sealed class RecordingNotificationService : INotificationService
+    {
+        public List<(Guid TenderId, string TenderName, string AssignedUserId)> AssignmentNotifications { get; } = [];
+        public List<(Guid TenderId, string TenderName, TenderStatus From, TenderStatus To)> StatusChanges { get; } = [];
+
+        public Task NotifyTenderAssignedAsync(Guid tenderId, string tenderName, string assignedUserId, CancellationToken cancellationToken = default)
+        {
+            AssignmentNotifications.Add((tenderId, tenderName, assignedUserId));
+            return Task.CompletedTask;
+        }
+
+        public Task NotifyTenderStatusChangedAsync(Guid tenderId, string tenderName, TenderStatus previousStatus, TenderStatus currentStatus, CancellationToken cancellationToken = default)
+        {
+            StatusChanges.Add((tenderId, tenderName, previousStatus, currentStatus));
+            return Task.CompletedTask;
+        }
     }
 }

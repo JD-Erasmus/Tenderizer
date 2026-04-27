@@ -4,11 +4,12 @@
 
 @{
     ViewData["Title"] = "Delete Tender";
+    ViewData["Subtitle"] = "This action permanently removes the tender and related workflow data.";
 
     var backLink = new TagBuilder("a");
     backLink.AddCssClass("btn btn-outline-secondary");
     backLink.Attributes["href"] = Url.Action("Details", new { id = Model.Id })!;
-    backLink.InnerHtml.Append("Back");
+    backLink.InnerHtml.Append("Back to Tender");
 
     ViewData["HeaderActions"] = backLink;
 }
@@ -22,6 +23,7 @@
         </div>
 
         <form method="post" asp-action="DeleteConfirmed" asp-route-id="@Model.Id" id="deleteForm">
+            @Html.AntiForgeryToken()
             <div class="d-flex gap-2">
                 <button type="button" class="btn btn-danger" id="deleteBtn">Delete</button>
                 <a class="btn btn-outline-secondary" asp-action="Details" asp-route-id="@Model.Id">Cancel</a>

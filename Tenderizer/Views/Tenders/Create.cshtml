@@ -3,6 +3,7 @@
 
 @{
     ViewData["Title"] = "Create Tender";
+    ViewData["Subtitle"] = "Capture tender details and upload the request document if available.";
     ViewData["ShowTenderRequestUpload"] = true;
 }
 
@@ -11,6 +12,7 @@
 <div class="card mb-3">
     <div class="card-body">
         <form method="post" enctype="multipart/form-data">
+            @Html.AntiForgeryToken()
             <partial name="_TenderForm" model="Model" />
 
             <div class="d-flex gap-2">

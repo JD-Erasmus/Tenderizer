@@ -77,70 +77,6 @@ public class ChecklistService : IChecklistService
             .ToListAsync();
     }
 
-    public async Task<bool> AcquireLockAsync(int checklistItemId, string userId, TimeSpan? timeout = null)
-    {
-        timeout ??= TimeSpan.FromMinutes(15);
-
-        await using var transaction = await _db.Database.BeginTransactionAsync();
-
-        var item = await LoadChecklistItemAsync(checklistItemId);
-        if (item == null)
-        {
-            return false;
-        }
-
-        await EnsureChecklistAccessAsync(item.Tender, userId);
-
-        if (item.IsCompleted)
-        {
-            throw new InvalidOperationException("Checklist item is already completed.");
-        }
-
-        var now = DateTimeOffset.UtcNow;
-        var expires = now.Add(timeout.Value);
-
-        if (item.LockExpiresAtUtc.HasValue && item.LockExpiresAtUtc > now)
-        {
-            return false; // locked by someone else
-        }
-
-        item.LockedByUserId = userId;
-        item.LockedAtUtc = now;
-        item.LockExpiresAtUtc = expires;
-        item.UpdatedAtUtc = now;
-
-        await _db.SaveChangesAsync();
-        await transaction.CommitAsync();
-        return true;
-    }
-
-    public async Task<bool> ReleaseLockAsync(int checklistItemId, string userId)
-    {
-        await using var transaction = await _db.Database.BeginTransactionAsync();
-
-        var item = await LoadChecklistItemAsync(checklistItemId);
-        if (item == null)
-        {
-            return false;
-        }
-
-        await EnsureChecklistAccessAsync(item.Tender, userId);
-
-        if (!string.Equals(item.LockedByUserId, userId, StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        item.LockedByUserId = null;
-        item.LockedAtUtc = null;
-        item.LockExpiresAtUtc = null;
-        item.UpdatedAtUtc = DateTimeOffset.UtcNow;
-
-        await _db.SaveChangesAsync();
-        await transaction.CommitAsync();
-        return true;
-    }
-
     public async Task MarkCompletedAsync(int checklistItemId, Guid? tenderDocumentId, string userId)
     {
         await using var transaction = await _db.Database.BeginTransactionAsync();
@@ -150,11 +86,6 @@ public class ChecklistService : IChecklistService
 
         await EnsureChecklistAccessAsync(item.Tender, userId);
 
-        if (!string.Equals(item.LockedByUserId, userId, StringComparison.Ordinal))
-        {
-            throw new UnauthorizedAccessException("Lock required");
-        }
-
         if (item.IsCompleted)
         {
             return;
@@ -163,11 +94,6 @@ public class ChecklistService : IChecklistService
         item.IsCompleted = true;
         item.UploadedTenderDocumentId = tenderDocumentId;
         item.UpdatedAtUtc = DateTimeOffset.UtcNow;
-
-        // release lock
-        item.LockedByUserId = null;
-        item.LockedAtUtc = null;
-        item.LockExpiresAtUtc = null;
 
         await _db.SaveChangesAsync();
         await transaction.CommitAsync();

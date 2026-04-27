@@ -82,11 +82,6 @@ public sealed class TenderDocumentService : ITenderDocumentService
 
         EnsureCanManageTender(tender, userId, isAdmin);
 
-        if (dto.ChecklistItemId.HasValue)
-        {
-            await ValidateChecklistLockAsync(tenderId, dto.ChecklistItemId.Value, userId, cancellationToken);
-        }
-
         var utcNow = DateTimeOffset.UtcNow;
         var storedFileId = Guid.NewGuid();
         var fileResult = await _privateFileStore.SaveNewAsync(
@@ -214,31 +209,6 @@ public sealed class TenderDocumentService : ITenderDocumentService
         }
 
         throw new UnauthorizedAccessException("Only the owner, an assigned user, or an admin can manage tender documents.");
-    }
-
-    private async Task ValidateChecklistLockAsync(Guid tenderId, int checklistItemId, string userId, CancellationToken cancellationToken)
-    {
-        var checklistItem = await _db.ChecklistItems
-            .AsNoTracking()
-            .SingleOrDefaultAsync(x => x.Id == checklistItemId && x.TenderId == tenderId, cancellationToken);
-
-        if (checklistItem is null)
-        {
-            throw new KeyNotFoundException("Checklist item not found.");
-        }
-
-        var utcNow = DateTimeOffset.UtcNow;
-        if (!string.Equals(checklistItem.LockedByUserId, userId, StringComparison.Ordinal) ||
-            !checklistItem.LockExpiresAtUtc.HasValue ||
-            checklistItem.LockExpiresAtUtc <= utcNow)
-        {
-            throw new UnauthorizedAccessException("Checklist lock required.");
-        }
-
-        if (checklistItem.IsCompleted)
-        {
-            throw new InvalidOperationException("Checklist item is already completed.");
-        }
     }
 
     private static TenderDocumentListItemVm MapTenderDocument(TenderDocument document)

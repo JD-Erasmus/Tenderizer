@@ -3,6 +3,7 @@
 
 @{
     ViewData["Title"] = "Edit Tender";
+    ViewData["Subtitle"] = "Update tender details and keep timeline values in UTC.";
     ViewData["ShowTenderRequestUpload"] = false;
 }
 
@@ -11,6 +12,7 @@
 <div class="card mb-3">
     <div class="card-body">
         <form method="post">
+            @Html.AntiForgeryToken()
             <partial name="_TenderForm" model="Model" />
 
             <div class="d-flex gap-2">

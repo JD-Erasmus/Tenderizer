@@ -23,6 +23,22 @@ dotnet ef database update --project Tenderizer
 dotnet run --project Tenderizer
 ```
 
+Tender workflow deployment notes
+-------------------------------
+
+- Checklist and assignment schema changes must be applied through the team migration process.
+- Do not generate or edit EF Core migration files in this branch as part of feature implementation.
+- Before deployment, confirm the reviewed migration includes:
+  - `ChecklistItems` table and indexes (`TenderId`, `IsCompleted`, `LockedByUserId`)
+  - `TenderAssignments` join table
+  - `Tenders.ChecklistGeneratedAt` nullable column
+- Ensure `ChecklistTemplates` exists in environment configuration (`appsettings.{Environment}.json` or equivalent secrets/config provider).
+- Deployment verification checklist:
+  - run `dotnet test`
+  - apply approved migration artifacts via the standard team process
+  - start app and validate `Draft -> Identified` transition creates checklist items
+  - validate assigned users can upload documents and link them to checklist items
+
 Local development notes
 -----------------------
 

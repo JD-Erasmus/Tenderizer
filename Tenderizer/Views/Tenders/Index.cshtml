@@ -6,6 +6,13 @@
     ViewData["Title"] = "Tenders";
     var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
     ViewData["Subtitle"] = $"{Model.TotalCount} total";
+
+    var createLink = new TagBuilder("a");
+    createLink.AddCssClass("btn btn-primary");
+    createLink.Attributes["href"] = Url.Action("Create")!;
+    createLink.InnerHtml.Append("New");
+    ViewData["HeaderActions"] = createLink;
+
     var tableModel = new TenderTableVm
     {
         TableId = "tenders-table",
@@ -49,10 +56,6 @@
         </div>
 
         <button type="button" class="btn btn-sm btn-outline-secondary" data-datatable-clear="tenders-table">Clear filters</button>
-    </div>
-
-    <div class="d-flex gap-2">
-        <a class="btn btn-sm btn-primary" asp-action="Create">New</a>
     </div>
 </div>
 

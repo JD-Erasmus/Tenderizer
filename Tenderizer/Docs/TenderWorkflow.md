@@ -10,7 +10,7 @@ New statuses
 - `Draft`: initial state when a tender is created. Basic metadata (title, description) and optional Tender/RFP document may be uploaded.
 - `Identified`: team members are assigned to the tender. Identified triggers checklist generation of required documents.
 - `InProgress`: assigned team members work through the checklist and upload documents.
-- `Completed`: checklist finished and tender is ready for final review or submission.
+- `Submitted`: checklist is finished and the tender has moved to submission.
 
 Data model changes
 ------------------
@@ -73,13 +73,11 @@ public class ChecklistTemplateItemConfig { public string Title { get; set; } pub
 
  - If later we add editable templates, the default config provides a sensible fallback.
 
-Concurrency and locking
------------------------
-- Checklist item uploads and completion are protected by an explicit pessimistic lock to avoid conflicting uploads when multiple assigned users act concurrently.
-- `ChecklistItem` will expose lock metadata (`LockedByUserId`, `LockedAtUtc`, `LockExpiresAtUtc`). A user must acquire the lock before uploading a document that satisfies the checklist item.
-- Lock acquisition and release should be performed in a short database transaction; acquiring a lock that is already held fails unless the existing lock has expired.
-- Locks have a configurable timeout (e.g., 15 minutes) to recover from abandoned locks. The service will automatically treat expired locks as released.
-- The UI should acquire a lock when a user begins a file upload flow and release it after upload completes or is cancelled. The server will validate the lock on upload and reject uploads from non-lock-holders.
+Checklist-linked uploads
+------------------------
+- Checklist items are completed by linking uploaded tender documents directly to `ChecklistItem.UploadedTenderDocumentId`.
+- Users can upload documents from the tender documents page and optionally associate each upload to a checklist item in the same form.
+- Server-side validation ensures checklist item and tender ownership/assignment rules are still enforced.
 
 Service changes
 ---------------
@@ -98,9 +96,8 @@ Service changes
 UI changes
 ----------
 - `Tenders/Create` and `Tenders/Edit` pages: allow admins/owners to set assigned users and change status.
-- `Tenders/Details` page: show assignment list and checklist. Provide action buttons for assigned users to upload documents per checklist item.
-- New partial view: `_Checklist.cshtml` to render checklist items and upload controls.
-  - Allow assigned users to add new checklist items while the tender status is `Identified`.
+- `Tenders/Details` page: show a quick tender summary and attached-documents section for at-a-glance context.
+- `TenderDocuments/Index` page: primary checklist-linked upload experience, where uploads can be associated to checklist items.
 
 APIs and background tasks
 -------------------------
@@ -108,7 +105,7 @@ APIs and background tasks
 Notifications
 -------------
 - Assigned users should receive an email when they are assigned to a tender.
-- Assigned users and the tender owner should receive an email when the tender status changes (notably: `Draft` -> `Identified`, `Identified` -> `InProgress`, and `InProgress` -> `Completed`).
+- Assigned users and the tender owner should receive an email when the tender status changes (notably: `Draft` -> `Identified`, `Identified` -> `InProgress`, and `InProgress` -> `Submitted`).
 - Notifications should be sent asynchronously and retried on transient failures. The existing `IEmailSender` / `SmtpEmailSender` pipeline may be reused; consider a small `INotificationService`/`NotificationService` to format templates and orchestrate sends.
 - Email templates should include the tender name, status, assigned user list, and a link to the tender details page.
 
@@ -119,7 +116,7 @@ Migration notes
 
 Security and authorization
 --------------------------
-- Only admins and tender owners can assign users and change certain statuses (e.g., to `Completed`).
+- Only admins and tender owners can assign users and change certain statuses (e.g., to `Submitted`).
 - Assigned users may upload documents and mark checklist items as completed.
  - Assigned users may add checklist items while the tender is in the `Identified` status and may upload documents and mark checklist items as completed.
  - Any user assigned to the tender may edit or remove checklist items after generation (for example to correct titles, change required flags, or remove items no longer relevant). Owners and admins retain override rights and may edit or remove items regardless of assignment.

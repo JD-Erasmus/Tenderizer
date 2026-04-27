@@ -52,15 +52,17 @@ public sealed class TendersController : Controller
         try
         {
             var vm = await _tenderService.GetDetailsAsync(id, userId, isAdmin, cancellationToken);
+
             try
             {
-                vm.ChecklistItems = (await _checklistService.GetChecklistAsync(id, userId)).Select(MapChecklistItem).ToList();
-                vm.CanViewChecklist = true;
+                var documentsVm = await _tenderDocumentService.GetIndexAsync(id, userId, isAdmin, cancellationToken);
+                vm.Documents = documentsVm.Documents;
+                vm.CanViewDocuments = true;
             }
             catch (UnauthorizedAccessException)
             {
-                vm.ChecklistItems = Array.Empty<ChecklistItemVm>();
-                vm.CanViewChecklist = false;
+                vm.Documents = Array.Empty<TenderDocumentListItemVm>();
+                vm.CanViewDocuments = false;
             }
 
             return View(vm);
@@ -235,52 +237,6 @@ public sealed class TendersController : Controller
         {
             await _checklistService.RemoveItemAsync(checklistItemId, userId);
             return NoContent();
-        }
-        catch (KeyNotFoundException)
-        {
-            return NotFound();
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return Forbid();
-        }
-    }
-
-    [HttpPost("{id:guid}/checklist/items/{checklistItemId:int}/lock")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> AcquireChecklistLock(Guid id, int checklistItemId)
-    {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
-
-        try
-        {
-            var locked = await _checklistService.AcquireLockAsync(checklistItemId, userId);
-            return locked ? Ok() : Conflict();
-        }
-        catch (KeyNotFoundException)
-        {
-            return NotFound();
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return Forbid();
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Conflict(ex.Message);
-        }
-    }
-
-    [HttpPost("{id:guid}/checklist/items/{checklistItemId:int}/unlock")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> ReleaseChecklistLock(Guid id, int checklistItemId)
-    {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
-
-        try
-        {
-            var released = await _checklistService.ReleaseLockAsync(checklistItemId, userId);
-            return released ? Ok() : Conflict();
         }
         catch (KeyNotFoundException)
         {

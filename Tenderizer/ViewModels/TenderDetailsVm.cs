@@ -14,8 +14,8 @@ public sealed class TenderDetailsVm
     public string OwnerUserId { get; set; } = string.Empty;
     public string OwnerDisplayName { get; set; } = string.Empty;
     public IReadOnlyList<string> AssignedUserIds { get; set; } = Array.Empty<string>();
-    public bool CanViewChecklist { get; set; }
-    public IReadOnlyList<ChecklistItemVm> ChecklistItems { get; set; } = Array.Empty<ChecklistItemVm>();
+    public bool CanViewDocuments { get; set; }
+    public IReadOnlyList<TenderDocumentListItemVm> Documents { get; set; } = Array.Empty<TenderDocumentListItemVm>();
     public DateTimeOffset CreatedAtUtc { get; set; }
     public DateTimeOffset UpdatedAtUtc { get; set; }
 }

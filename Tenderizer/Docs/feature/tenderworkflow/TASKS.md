@@ -8,7 +8,7 @@ Priority order
 1. Data model and migrations
 2. Service interfaces and implementations
 3. Notification plumbing
-4. Tender document integration and locking
+4. Tender document integration and checklist linkage
 5. UI and controllers
 6. Tests and migrations
 7. Docs and deployment
@@ -32,10 +32,10 @@ Repository constraints
   - [x] Implement a `ChecklistTemplateProvider` that returns the `Default` template.
 
 - Services
-  - [x] Add `IChecklistService` interface: `GenerateChecklistAsync(Guid tenderId, string? templateName)`, `GetChecklistAsync(Guid tenderId)`, `AcquireLockAsync(int checklistItemId, string userId, TimeSpan? timeout = null)`, `ReleaseLockAsync(int checklistItemId, string userId)`, `MarkCompletedAsync(int checklistItemId, Guid? tenderDocumentId, string userId)`, `AddItemAsync(Guid tenderId, CreateChecklistItemDto, string userId)`, `UpdateItemAsync(...)`, `RemoveItemAsync(...)`.
-  - [x] Implement `ChecklistService` with lock acquisition/release and expiry handling.
+  - [x] Add `IChecklistService` interface: `GenerateChecklistAsync(Guid tenderId, string? templateName)`, `GetChecklistAsync(Guid tenderId)`, `MarkCompletedAsync(int checklistItemId, Guid? tenderDocumentId, string userId)`, `AddItemAsync(Guid tenderId, CreateChecklistItemDto, string userId)`, `UpdateItemAsync(...)`, `RemoveItemAsync(...)`.
+  - [x] Implement `ChecklistService` for checklist generation, editing, and document-linked completion handling.
   - [x] Update `ITenderService`/`TenderService` to call `ChecklistService.GenerateChecklistAsync` when transitioning `Draft` -> `Identified` and to manage `ChecklistGeneratedAt`.
-  - [x] Update `TenderDocumentService` to validate checklist locks on upload and call `ChecklistService.MarkCompletedAsync` to link uploads.
+  - [x] Update `TenderDocumentService` to call `ChecklistService.MarkCompletedAsync` to link uploads.
   - [x] Wire the checklist service into tender status transitions and document upload flows.
 
 - Notifications
@@ -44,29 +44,29 @@ Repository constraints
 
 - Authorization
   - [x] Enforce that only owners/admins can assign users and change restricted statuses.
-  - [x] Enforce that assigned users can add/edit/remove checklist items during `Identified`/`InProgress` and may acquire locks.
+  - [x] Enforce that assigned users can add/edit/remove checklist items during `Identified`/`InProgress`.
   - [x] Server-side validation for all actions (do not rely on client checks).
 
 - API / Controller changes
-  - [x] Add endpoints for checklist: list, add, edit, remove, acquire lock, release lock, mark completed.
+  - [x] Add endpoints for checklist: list, add, edit, remove, mark completed.
   - [x] Update `TendersController` and/or `TenderDocumentsController` to support checklist-related actions and uploads.
   - [x] Add UI model updates and DTOs for checklist operations.
 
 - UI
-  - [x] Create partial `_Checklist.cshtml` to render checklist, lock state, upload controls, and add/edit/remove UI.
-  - [x] Wire `_Checklist` into `Tenders/Details.cshtml`.
+  - [x] Provide checklist-linked uploads on `TenderDocuments/Index.cshtml` as the primary checklist completion surface.
+  - [x] Show tender summary and attached-documents snapshot on `Tenders/Details.cshtml` for quick context.
   - [x] Update `Tenders/Edit` and `Create` to allow assigning users (admin/owner only).
-  - [x] Add client code to acquire/release locks around upload flows (AJAX-friendly).
+  - [x] Remove checklist upload lock/unlock interactions from UI and service flow.
 
 - Tests
-  - [ ] Unit tests for `ChecklistService` including lock acquisition/expiry, generation, add/edit/remove, and mark-completed flows.
-  - [ ] Integration tests for `TenderService` status transitions and notification calls.
+  - [x] Unit tests for `ChecklistService` including generation, add/edit/remove, and mark-completed flows.
+  - [x] Integration tests for `TenderService` status transitions and notification calls.
   - [ ] UI/functional tests for checklist add/upload/complete flows (optional but recommended).
 
 - Docs and housekeeping
   - [x] Update `Docs/Architecture.md`, `Docs/Domain-Model.md`, and `Docs/TenderWorkflow.md` (done).
-  - [ ] Add migration notes and deployment instructions.
-  - [ ] Update release notes and update any seed data if required.
+  - [x] Add migration notes and deployment instructions.
+  - [x] Update release notes and update any seed data if required.
 
 Optional / future
 -----------------

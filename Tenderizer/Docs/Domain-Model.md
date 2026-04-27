@@ -77,13 +77,12 @@ Relationships and indexes
 - Indexes on `Tender.ClosingAtUtc`, `Tender.Status`, and `Tender.OwnerUserId`
 - Indexes on reminder state and schedule fields for worker lookups
 
-Checklist concurrency and locking
---------------------------------
+Checklist completion linkage
+----------------------------
 
-- `ChecklistItem` entities include lock metadata to support pessimistic locking for document uploads: `LockedByUserId` (string), `LockedAtUtc` (DateTimeOffset?), and `LockExpiresAtUtc` (DateTimeOffset?).
-- The application requires clients to acquire a lock before uploading a document that satisfies a checklist item. Lock acquisition occurs in a short database transaction and fails if an unexpired lock exists.
-- Locks automatically expire after a configurable timeout (e.g., 15 minutes) so abandoned locks are recoverable. The server treats expired locks as released.
-- The UI should obtain and release locks during the upload flow; the server validates the lock owner before accepting an upload and marking the item completed.
+- `ChecklistItem` completion is driven by document linkage (`UploadedTenderDocumentId`) and `IsCompleted` state.
+- Upload flows may optionally associate the upload to a checklist item; when linked, checklist completion is tracked directly in the item record.
+- Authorization for uploads and checklist changes is enforced server-side based on owner/admin/assignment rules.
 
 Reminder lifecycle
 ------------------
@@ -106,7 +105,7 @@ Notifications and assignment events
 ----------------------------------
 
 - Assigning a user to a tender triggers an email notification to the assigned user.
-- Changing a tender's status triggers email notifications to the tender owner and assigned users for key transitions (`Draft` -> `Identified`, `Identified` -> `InProgress`, `InProgress` -> `Completed`).
+- Changing a tender's status triggers email notifications to the tender owner and assigned users for key transitions (`Draft` -> `Identified`, `Identified` -> `InProgress`, `InProgress` -> `Submitted`).
 - Notifications should be sent asynchronously and use the existing `IEmailSender` implementation behind a `INotificationService` orchestration layer.
 
 Checklist edit permissions
